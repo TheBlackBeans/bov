@@ -35,7 +35,10 @@ def add_tuples(*tuples):
 def sub_tuples(t1, t2):
     return tuple(a-b for a, b in zip(t1, t2))
 
-def message(*args, sep=' '):
+def message(*args, source="game"):
+    output("["+source+"]",*args)
+
+def output(*args, sep=' '):
     message_window.update_messages(sep.join(str(e) for e in args))
 
 def quit():
@@ -133,16 +136,32 @@ class Tile:
         
 ### CREATURES ###
 
-class Hero:
-    def __init__(self):
-        self.char = "@"
-        self.pos = (0, 0)
-        self.color = 4
+class Creature:
+    DEFAULT_CHAR = "%"
+    DEFAULT_POS = (0,0)
+    DEFAULT_COLOR = 4
+    def __init__(self, pos=None, char=None, color=None):
+        if char is None:
+            self.char = self.DEFAULT_CHAR
+        else:
+            self.char = char
+        if pos is None:
+            self.pos = self.DEFAULT_POS
+        else:
+            self.pos = pos
+        if color is None:
+            self.color = self.DEFAULT_COLOR
+        else:
+            self.color = color
     def move(self, dir):
         self.pos = add_tuples(self.pos, dir)
-
-
         
+class Hero(Creature):
+    DEFAULT_CHAR = "@"
+    
+class Daemon(Creature):
+    DEFAULT_CHAR = "&"
+
 
 ### OTHER ###
 
@@ -166,7 +185,7 @@ class Life:
     def differential(self, d):
         self.update(self.actual+d)
     def draw(self):
-        self.parent.addstr(self.y, self.x, "Life %s/%s" % (str(self.actual), str(self.max_life)))
+        self.parent.addstr(self.y, self.x, "Life: %s/%s" % (str(self.actual), str(self.max_life)))
         for i in range(self.size[1]):
             if i < self.actual:
                 self.parent.addch(self.y+1, self.x+i, ord(" "), curses.color_pair(2) | curses.A_BOLD)
@@ -174,6 +193,14 @@ class Life:
                 self.parent.addch(self.y+1, self.x+i, ord(" "), cuses.color_pair(3) | curses.A_BOLD)
 
 
+class Coords:
+    def __init__(self, parent):
+        self.parent = parent
+        self.y = 0
+        self.x = 0
+        self.size = (1, 20)
+    def draw(self):
+        self.parent.addstr(self.y, self.x, "Coords: %s,%s" % game_frame.creatures[0].pos)
 
 import action, verticalhandler, game
 

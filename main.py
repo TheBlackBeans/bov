@@ -2,13 +2,14 @@
 # -*- coding: utf-8 -*-
 
 from math import ceil
-import sys
+import sys, os
 from curses import wrapper
 import curses
 import curses.textpad
 
 import state
 from state import *
+
 
 
 class MessageWindow(Window):
@@ -50,19 +51,21 @@ def main(stdscr):
     # Hero
     curses.init_pair(4, curses.COLOR_BLACK, curses.COLOR_WHITE)
     # Highlighted text
-    curses.init_pair(5, curses.COLOR_BLACK, curses.COLOR_RED)
-    screen = Screen(stdscr)
+    curses.init_pair(5, curses.COLOR_RED, curses.COLOR_WHITE)
+    # Selected argument
+    curses.init_pair(6, curses.COLOR_RED, curses.COLOR_MAGENTA)
+    state.screen = Screen(stdscr)
     curses.curs_set(False)
-    screen.clear()
+    state.screen.clear()
 
     hero = Hero()
-    sc_height = screen.size[0]
-    sc_width = screen.size[1]
+    sc_height = state.screen.size[0]
+    sc_width = state.screen.size[1]
     
     gw_height = sc_height
     gw_width = 3*sc_width//5
     game_window = GameWindow(
-        screen,
+        state.screen,
         0,
         sc_width - gw_width,
         gw_height,
@@ -72,7 +75,7 @@ def main(stdscr):
     mw_height = sc_height//3
     mw_width = 2*sc_width//5
     state.message_window = MessageWindow(
-        screen,
+        state.screen,
         sc_height - mw_height,
         0,
         mw_height,
@@ -82,32 +85,35 @@ def main(stdscr):
     aw_height = 3
     aw_width = 2*sc_width//5
     action_window = ActionWindow(
-        screen,
+        state.screen,
         sc_height - (aw_height + mw_height),
         0,
         aw_height,
         aw_width
     )
 
-    life = Life(screen)
+    life = Life(state.screen)
+    coords = Coords(state.screen)
     
     state.game_frame = state.GameFrame(game_window, hero)
     state.action_frame = state.ActionFrame(action_window)
 
     
-    screen.add_window(state.message_window)
-    screen.add_window(life)
-    screen.add_window(game_window)
-    screen.add_window(action_window)
-    screen.refresh()
+    state.screen.add_window(state.message_window)
+    state.screen.add_window(life)
+    state.screen.add_window(coords)
+    state.screen.add_window(game_window)
+    state.screen.add_window(action_window)
+    state.screen.refresh()
     try:
         while not stop:
-            key = screen.getch()
+            key = state.screen.getch()
             state.keyhandler.dispatch_key(key)
-            screen.refresh()
+            state.screen.refresh()
     except QuitGame:
         stop = True
     
     
-
+#os.environ.setdefault('ESCDELAY', '25')
+# doesn't seem to be working...
 wrapper(main)

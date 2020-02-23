@@ -20,10 +20,8 @@ class KeyHandler:
         self.disabled = set()
     def add_handler(self, priority):
         def decorator(function):
-            def wrapper(*args, **kwargs):
-                return function(*args, **kwargs)
-            heapq.heappush(self.callbacks, (-priority, wrapper))
-            return wrapper
+            heapq.heappush(self.callbacks, (-priority, function))
+            return function
         return decorator
     def dispatch_key(self, key):
         for function in iterate_heap(self.callbacks, self.disabled):
@@ -41,3 +39,4 @@ class KeyHandler:
                 self.callbacks.pop(i)
             else:
                 i += 1
+        heapq.heapify(self.callbacks)
