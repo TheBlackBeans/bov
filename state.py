@@ -2,7 +2,7 @@
 # Contains every public shared objects,
 # so at any moment this represents the "state" of the program
 
-import curses, color
+import curses, math
 from verticalhandler import KeyHandler, QuitGame
 
 ### DEFINES ###
@@ -29,6 +29,9 @@ PRIORITIES = {
 
 ### UTILITY ###
 
+def rad2deg(a):
+    return a*180/math.pi
+
 def add_tuples(*tuples):
     return tuple(sum(values) for values in zip(*tuples))
 
@@ -41,6 +44,11 @@ def message(*args, source="game"):
 def output(*args, sep=' '):
     message_window.update_messages(sep.join(str(e) for e in args))
 
+def distance(pos1,pos2):
+    y1,x1 = pos1
+    y2,x2 = pos2
+    return abs(y1-y2)+abs(x1-x2)
+    
 def quit():
     raise QuitGame()
     
@@ -69,6 +77,8 @@ class Screen:
         return getattr(self.window, attr)
     def add_window(self, window):
         self.windows.append(window)
+    def remove_window(self, window):
+        self.windows.remove(window)
     def refresh(self):
         self.clear()
         for window in self.windows:
@@ -89,8 +99,23 @@ class Window:
         pass
     def draw(self):
         self.border()
-    def addch(self, y, x, *args, **kwargs):
-        self.parent.addch(self.y+y, self.x+x, *args, **kwargs)
+    def addch(self, y, x, char, attributes=0):
+        colors = 0
+        if len(char) > 1:
+            if len(char) > 3 and char.startswith("\\C"):
+                color = ""
+                index = 2
+                while True:
+                    if char[index] in '0123456789':
+                        color += char[index]
+                        index += 1
+                    else:
+                        break
+                char = char[index:]
+                color = int(color)
+            attributes |= curses.color_pair(color)
+        self.parent.addch(self.y+y, self.x+x, char, color|curses.A_BOLD)
+        self.parent.chgat(self.y+y, self.x+x, 1, curses.color_pair(color)|curses.A_BOLD)
     def addstr(self, y, x, string, color=1, *args, other_flags=0, **kwargs):
         strings = []
         actual = ""
@@ -134,75 +159,102 @@ class Tile:
             return " "
 
         
-### CREATURES ###
-
-class Creature:
-    DEFAULT_CHAR = "%"
-    DEFAULT_POS = (0,0)
-    DEFAULT_COLOR = 4
-    def __init__(self, pos=None, char=None, color=None):
-        if char is None:
-            self.char = self.DEFAULT_CHAR
-        else:
-            self.char = char
-        if pos is None:
-            self.pos = self.DEFAULT_POS
-        else:
-            self.pos = pos
-        if color is None:
-            self.color = self.DEFAULT_COLOR
-        else:
-            self.color = color
-    def move(self, dir):
-        self.pos = add_tuples(self.pos, dir)
-        
-class Hero(Creature):
-    DEFAULT_CHAR = "@"
-    
-class Daemon(Creature):
-    DEFAULT_CHAR = "&"
-
-
 ### OTHER ###
 
-# Life, keeps graphical count of life
-class Life:
-    def __init__(self, parent):
-        self.parent = parent
-        self.y = 3
-        self.x = 0
-        self.size = (2, 20)
-        self.max_life = 20
-        self.actual = 20
-    def update_max(self, life):
-        d = life-self.max_life
-        self.max_life = life
-        self.size = (1, life)
-        if d > 0:
-            self.differential(d)
-    def update(self, life):
-        self.actual = min(max(life, 0), self.max_life)
-    def differential(self, d):
-        self.update(self.actual+d)
-    def draw(self):
-        self.parent.addstr(self.y, self.x, "Life: %s/%s" % (str(self.actual), str(self.max_life)))
-        for i in range(self.size[1]):
-            if i < self.actual:
-                self.parent.addch(self.y+1, self.x+i, ord(" "), curses.color_pair(2) | curses.A_BOLD)
-            else:
-                self.parent.addch(self.y+1, self.x+i, ord(" "), cuses.color_pair(3) | curses.A_BOLD)
-
-
-class Coords:
+class Armor:
     def __init__(self, parent):
         self.parent = parent
         self.y = 0
         self.x = 0
         self.size = (1, 20)
     def draw(self):
-        self.parent.addstr(self.y, self.x, "Coords: %s,%s" % game_frame.creatures[0].pos)
+        hero = game_frame.get_hero()
+        self.parent.addstr(self.y,self.x,"Armor: %s" % hero.armor)
 
-import action, verticalhandler, game
+class Resistance:
+    def __init__(self, parent):
+        self.parent = parent
+        self.y = 1
+        self.x = 0
+        self.size = (1, 20)
+    def draw(self):
+        hero = game_frame.get_hero()
+        self.parent.addstr(self.y,self.x,"Resistance: %s" % hero.resistance)
 
+# Life, keeps graphical count of life
+class Life:
+    def __init__(self, parent):
+        self.parent = parent
+        self.y = 2
+        self.x = 0
+        self.size = (2, 20)
+    def draw(self):
+        max_life = game_frame.creatures[0].max_life
+        actual = int(round(game_frame.creatures[0].life*self.size[1]/max_life,0))
+        actual_true = game_frame.creatures[0].life
+        self.parent.addstr(self.y, self.x, "Life: %s/%s" % (str(actual_true), str(max_life)))
+        for i in range(self.size[1]):
+            if i < actual:
+                self.parent.addch(self.y+1, self.x+i, ord(" "), curses.color_pair(2) | curses.A_BOLD)
+            else:
+                self.parent.addch(self.y+1, self.x+i, ord(" "), curses.color_pair(3) | curses.A_BOLD)
+
+class Mana:
+    def __init__(self, parent):
+        self.parent = parent
+        self.y = 4
+        self.x = 0
+        self.size = (2, 20)
+    def draw(self):
+        max_mana = game_frame.creatures[0].max_mana
+        if max_mana == 0:
+            actual = 0
+        else:
+            actual = int(round(game_frame.creatures[0].mana*self.size[1]/max_mana,0))
+        actual_true = game_frame.creatures[0].mana
+        self.parent.addstr(self.y, self.x, "Mana: %s/%s" % (str(actual_true), str(max_mana)))
+        for i in range(self.size[1]):
+            if i < actual:
+                self.parent.addch(self.y+1, self.x+i, ord(" "), curses.color_pair(7) | curses.A_BOLD)
+            else:
+                self.parent.addch(self.y+1, self.x+i, ord(" "), curses.color_pair(3) | curses.A_BOLD)
+
+class Hands(Window):
+    def __init__(self, parent):
+        self.parent = parent
+        self.y = 0
+        self.x = 21
+        self.size = (2, 20)
+        self._border = False
+    def draw(self):
+        hero_inventory = game_frame.get_hero().inventory
+        self.addstr(0, 0, "Right: " + hero_inventory.slots["right"].repr())
+        self.addstr(1, 0, "Left: " + hero_inventory.slots["left"].repr())
+                
+class Coords:
+    def __init__(self, parent):
+        self.parent = parent
+        self.y = 2
+        self.x = 21
+        self.size = (1, 20)
+    def draw(self):
+        self.parent.addstr(self.y, self.x, "Coords: %s,%s" % game_frame.get_hero().pos)
+
+class Turns:
+    def __init__(self, parent):
+        self.parent = parent
+        self.y = 3
+        self.x = 21
+        self.size = (1, 20)
+    def draw(self):
+        self.parent.addstr(self.y, self.x, "Turns: %s (%s)" % (game_frame.player_turns, game_frame.turns))
+
+
+import action, verticalhandler, game, creature, items, color, map
+
+from items import Item, InventoryWindow, Inventory
 from action import ActionFrame, ActionWindow, Action
 from game import GameFrame, GameWindow
+from creature import Creature, Hero, Daemon
+from color import colors
+from map import Map

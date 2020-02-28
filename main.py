@@ -24,7 +24,7 @@ class MessageWindow(Window):
     def get_messages(self):
         self.msg = []
         height = self.height - 2
-        width = self.width - 2
+        width = self.width - 3
         for message in self.messages[::-1]:
             for line in self.split_message(message, width)[::-1]:
                 if len(self.msg) >= height:
@@ -41,19 +41,7 @@ class MessageWindow(Window):
     
 def main(stdscr):
     stop = False
-    # Default text
-    curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_WHITE)
-    # Bars
-    #  filled
-    curses.init_pair(2, curses.COLOR_RED, curses.COLOR_RED)
-    #  empty
-    curses.init_pair(3, curses.COLOR_WHITE, curses.COLOR_WHITE)
-    # Hero
-    curses.init_pair(4, curses.COLOR_BLACK, curses.COLOR_WHITE)
-    # Highlighted text
-    curses.init_pair(5, curses.COLOR_RED, curses.COLOR_WHITE)
-    # Selected argument
-    curses.init_pair(6, curses.COLOR_RED, curses.COLOR_MAGENTA)
+    color.init_curses_color()
     state.screen = Screen(stdscr)
     curses.curs_set(False)
     state.screen.clear()
@@ -73,7 +61,7 @@ def main(stdscr):
     )
     
     mw_height = sc_height//3
-    mw_width = 2*sc_width//5
+    mw_width = 2*sc_width//5+1
     state.message_window = MessageWindow(
         state.screen,
         sc_height - mw_height,
@@ -83,7 +71,7 @@ def main(stdscr):
     )
 
     aw_height = 3
-    aw_width = 2*sc_width//5
+    aw_width = 2*sc_width//5+1
     action_window = ActionWindow(
         state.screen,
         sc_height - (aw_height + mw_height),
@@ -92,24 +80,45 @@ def main(stdscr):
         aw_width
     )
 
-    life = Life(state.screen)
-    coords = Coords(state.screen)
+    iw_height = sc_height - (6+aw_height+mw_height)
+    iw_width = 2*sc_width//5+1
+    state.inventory_window = InventoryWindow(
+        state.screen,
+        sc_height - (aw_height+mw_height+iw_height),
+        0,
+        iw_height,
+        iw_width
+    )
     
-    state.game_frame = state.GameFrame(game_window, hero)
-    state.action_frame = state.ActionFrame(action_window)
+    armor = Armor(state.screen)
+    resistance = Resistance(state.screen)
+    life = Life(state.screen)
+    mana = Mana(state.screen)
+    coords = Coords(state.screen)
+    turns = Turns(state.screen)
 
+    hands = Hands(state.screen)
+    
+    state.game_frame = state.GameFrame(game_window)
+    state.game_frame.load_map()
+    state.action_frame = state.ActionFrame(action_window)
+    state.action.init_actions()
     
     state.screen.add_window(state.message_window)
+    state.screen.add_window(armor)
+    state.screen.add_window(resistance)
     state.screen.add_window(life)
+    state.screen.add_window(mana)
     state.screen.add_window(coords)
+    state.screen.add_window(turns)
+    state.screen.add_window(hands)
     state.screen.add_window(game_window)
     state.screen.add_window(action_window)
+    state.screen.add_window(state.inventory_window)
     state.screen.refresh()
     try:
         while not stop:
-            key = state.screen.getch()
-            state.keyhandler.dispatch_key(key)
-            state.screen.refresh()
+            state.game_frame.take_turn()
     except QuitGame:
         stop = True
     
