@@ -302,7 +302,7 @@ class GameWindow(state.Window):
         vertex1, vertex2 = self.compute_vertex(pos1, pos2)
         angle1 = self.compute_angle(state.sub_tuples(vertex1, pos1))
         angle2 = self.compute_angle(state.sub_tuples(vertex2, pos1))
-        return Shadow(min(angle1,angle2),max(angle1,angle2))
+        return Shadow(angle1,angle2)
     def compute_visibility(self, start, max_range=float("inf")):
         gen = FOVWalkGen(start)
         start_center = state.add_tuples(start, (.5,.5))
@@ -337,7 +337,7 @@ class GameWindow(state.Window):
             shadows.append(shadow)
     def update_seen(self):
         self.map.unlit()
-        self.compute_visibility(state.game_frame.creatures[state.game_frame.hero_uuid].pos, max_range=50)
+        self.compute_visibility(state.game_frame.creatures[state.game_frame.hero_uuid].pos, max_range=10)
         self.map.lit_known()
     def draw_map(self):
         for y in range(1, self.height-1):
