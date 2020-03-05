@@ -85,7 +85,8 @@ class Creature:
     DEFAULT_UUID = SaveInterface(int, int, 0)
     DEFAULT_IS_HERO = SaveInterface(bool, bool, False)
     DEFAULT_IS_WALKABLE = SaveInterface(bool, bool, False)
-    CREATURE_ATTRIBUTES = {"char", "pos", "color", "speed", "life", "max_life", "mana", "max_mana", "str", "armor", "resistance", "strenght", "max_weight", "weight", "inventory", "_dead", "creature_id", "uuid", "is_hero", "is_walkable"}
+    DEFAULT_EFFECTS = SaveInterface(list, list, [])
+    CREATURE_ATTRIBUTES = {"char", "pos", "color", "speed", "life", "max_life", "mana", "max_mana", "str", "armor", "resistance", "strenght", "max_weight", "weight", "inventory", "_dead", "creature_id", "uuid", "is_hero", "is_walkable", "effects"}
     def __init__(self, **attributes):
         for key in attributes.keys():
             if key not in self.CREATURE_ATTRIBUTES:
@@ -107,7 +108,15 @@ class Creature:
         if item.weight <= self.weight - self.current_weight:
             self.inventory.append(item)
             self.current_weight += item.weight
-    def attack(self, target, damage):
+    def compute_attack(self):
+        modifier = 0
+        for effect in self.effects:
+            if attack in effect:
+                modifier += effect["attack"]
+        return self.strenght + modifier
+    def attack(self, target):
+        self._attack(target, self.compute_attack())
+    def _attack(self, target, damage):
         state.message("attacks %s" % str(state.game_frame.get_creature(target)), source=str(self))
         state.game_frame.get_creature(target).hurt(damage, self.uuid)
     def react_to_attack(self, damage, source):
@@ -188,10 +197,10 @@ class AutoCreature(Creature):
     def take_turn(self):
         if self.is_dead():
             return []
-        if self.ennemy!=-1 and state.game_frame.get_creature(self.ennemy).is_dead():
+        if self.ennemy!=-1 and (not state.game_frame.exists(self.ennemy) or state.game_frame.get_creature(self.ennemy).is_dead()):
             self.ennemy = -1
         if self.ennemy!=-1 and state.distance(state.game_frame.get_creature(self.ennemy).pos, self.pos) < 3:
-            self.attack(self.ennemy, self.strenght)
+            self.attack(self.ennemy)
             return [(self.speed, self.take_turn)]
         elif self.ennemy!=-1:
             if state.game_frame.get_creature(self.ennemy).pos != self.target_pos:

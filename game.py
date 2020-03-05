@@ -1,5 +1,5 @@
 import state, curses, random, heapq, functools, creature, queue
-from math import pi, atan
+from math import pi, atan, atan2
 class ActionsQueue:
     def __init__(self, queue=None):
         if queue is None:
@@ -58,26 +58,70 @@ class FOVWalkGen:
         for next in self.neighboors(current):
             if next not in self.visited:
                 self.visited.add(next)
-                self.border.put_nowait((state.distance(next, self.start),next))
+                self.border.put_nowait((state.diag_distance(next, self.start),next))
         return current
 
 class Shadow:
-    def __init__(self, left, right):
-        self.left = left
-        self.right = right
-        self.ext = left > right
-    def __contains__(self, right):
-        return (self.left <= right.right <= self.right or self.left <= right.left <= self.right) or (self.right <= right.left <= self.left or self.right <= right.right <= self.left)
-    def strictly_contains(self, right):
-        return (self.left <= right.left <= right.right <= self.right and not (self.ext and right.ext)) or (self.right <= right.right <= right.left <= self.left and (self.ext and right.ext))
-    def join(self, right):
-        lfunc = max if self.ext else min
-        rfunc = min if self.ext else max
-        self.left = lfunc(self.left, right.left)
-        self.right = rfunc(self.right, right.right)
-        self.ext = self.left > self.right
+    EPSILON = .07 
+    def __init__(self, start, lenght):
+        self.start = start
+        self.lenght = lenght
+    def contains(self, left, right, a):
+        return left <= a <= right
+    def __contains__(self, shadow):
+        left = self.start
+        right = left + self.lenght
+        if right <= 2*pi:
+            if self.contains(left,right,shadow.start) or self.contains(left, right, (shadow.start+shadow.lenght)%(2*pi)):
+                return True
+        else:
+            if self.contains(left,2*pi,shadow.start) or self.contains(left,2*pi,(shadow.start+shadow.lenght)%(2*pi)) or self.contains(0,right%(2*pi),shadow.start) or self.contains(0,right%(2*pi), (shadow.start+shadow.lenght)%(2*pi)):
+                return True
+    def __str__(self):
+        return "Shadow<%s,%s>" % (round(self.start/pi,2),round((self.start+self.lenght)/pi,2))
+    def __repr__(self):
+        return str(self)
+    def strictly_contains(self, shadow):
+        right = self.start+self.lenght
+        sright = shadow.start+shadow.lenght
+        if self.start <= shadow.start and self.lenght >= shadow.lenght and right >= sright:
+            return True
+        elif right > 2*pi and sright <= 2*pi and right-2*pi>=sright:
+            return True
+        return False
+                
+    def join(self, shadow):
+        right = self.start+self.lenght
+        sright = shadow.start+shadow.lenght
+        if right <= 2*pi and sright <= 2*pi or right > 2*pi and sright > 2*pi:
+            self.start = min(self.start,shadow.start)
+            self.lenght = max(right, sright) - self.start
+        else:
+            if right > 2*pi:
+                start1 = self.start
+                right1 = right
+                start2 = shadow.start
+                right2 = sright
+            else:
+                start1 = shadow.start
+                right1 = sright
+                start2 = self.start
+                right2 = right
+            if start2 <= right1-2*pi:
+                if start1 <= right2:
+                    self.start = 0
+                    self.lenght = 2*pi
+                else:
+                    self.start = start1
+                    right = max(right2+2*pi, right1)
+                    self.lenght = right-self.start
+            else:
+                self.start = min(start1, start2)
+                self.lenght = right1 - self.start
     def is_full_circle(self):
-        return self.left == 0 and self.right == 2*pi
+        return (self.start-0) <= self.EPSILON and abs(self.lenght-2*pi) <= self.EPSILON
+    def copy(self):
+        return Shadow(self.start, self.lenght)
     
 class PosError(BaseException): pass
         
@@ -100,6 +144,9 @@ class GameFrame(state.Frame):
         #                    requires confirmation
         self.move_mode = 0
         self.hero_uuid = -1
+        self.shadows = []
+    def exists(self, uuid):
+        return uuid in self.creatures
     def get_creature(self, uuid):
         return self.creatures[uuid]
     def pre_load(self):
@@ -153,11 +200,10 @@ class GameFrame(state.Frame):
         self.player_turns += 1
         self.played = False
         self.player_actions = []
-        state.screen.refresh()
         while not self.played:
+            state.screen.refresh()
             key = state.screen.getch()
             state.keyhandler.dispatch_key(key)
-            state.screen.refresh()
         return self.player_actions
     def process_move(self, move):
         move_map = {
@@ -233,11 +279,32 @@ class GameFrame(state.Frame):
             state.action_frame.load_action(
                 state.action.shadow_action
             )
+        elif key == ord("C"):
+            state.action_frame.load_action(
+                state.action.compare_action
+            )
+        elif key == ord("n"):
+            state.action_frame.load_action(
+                state.action.name_action
+            )
+        elif key == ord("j"):
+            state.action_frame.load_action(
+                state.action.join_action
+            )
+        elif key == ord("o"):
+            state.action_frame.load_action(
+                state.action.open_action
+            )
+        elif key == ord("O"):
+            state.action_frame.load_action(
+                state.action.close_action
+            )
         else:
             return False
         return True
     def load_map(self):
-        self.window.map.load_file("maps/map1.mp")
+        #self.window.map.load_file("maps/map2.mp")
+        self.window.map.load_custom()
     def move(self, what, dir):
         if self.is_walkable(state.add_tuples(self.creatures[what].pos, dir)):
             self.creatures[what].move(dir)
@@ -246,8 +313,8 @@ class GameFrame(state.Frame):
 
 class GameWindow(state.Window):
     def _post_init(self):
-        self.offset = (1,2)
-        self.hide = False
+        self.offset = (20,20)
+        self.hide = True
     def pos_to_realpos(self, pos):
         return state.sub_tuples(pos, self.offset)
     def add_highlight(self, pos):
@@ -283,35 +350,46 @@ class GameWindow(state.Window):
     def compute_vertex(self, start, pos):
         if start[1] == pos[1]:
             # start.x == pos.x
-            if start[0] < pos[0]:
+            if pos[0] > start[0]:
+                # pos.y > start.y
                 return (pos, state.add_tuples(pos, (0,1)))
             else:
-                return (state.add_tuples(pos, (1,0)), state.add_tuples(pos, (1,1)))
+                return (state.add_tuples(pos, (1,1)), state.add_tuples(pos, (1,0)))
         if start[0] == pos[0]:
             # start.y == pos.y
-            if start[1] < pos[1]:
-                return (pos, state.add_tuples(pos, (1,0)))
+            if pos[1] > start[1]:
+                # pos.x > start.x
+                return (state.add_tuples(pos, (1,0)), pos)
             else:
                 return (state.add_tuples(pos, (0,1)), state.add_tuples(pos, (1,1)))
 
-        if (pos[0] > start[0] and pos[1] > start[1]) or (pos[0] < start[0] and pos[1] < start[1]):
+        if (pos[0] > start[0] and pos[1] > start[1]): 
+            return (state.add_tuples(pos, (1,0)), state.add_tuples(pos, (0,1)))
+        elif (pos[0] < start[0] and pos[1] < start[1]):
             return (state.add_tuples(pos, (0,1)), state.add_tuples(pos, (1,0)))
+        elif (pos[0] < start[0] and pos[1] > start[1]):
+            return (state.add_tuples(pos, (1,1)), pos)
         else:
             return (pos, state.add_tuples(pos, (1,1)))
+    def transform_coords(self, pos):
+        return -pos[0], pos[1]
     def compute_shadow(self, pos1, pos2):
+        pos1center = state.add_tuples(pos1,(.5,.5))
         vertex1, vertex2 = self.compute_vertex(pos1, pos2)
-        angle1 = self.compute_angle(state.sub_tuples(vertex1, pos1))
-        angle2 = self.compute_angle(state.sub_tuples(vertex2, pos1))
-        return Shadow(angle1,angle2)
+        angle1 = atan2(*self.transform_coords(state.sub_tuples(vertex1, pos1center)))%(2*pi)
+        angle2 = atan2(*self.transform_coords(state.sub_tuples(vertex2, pos1center)))%(2*pi)
+        start = angle1
+        lenght = (angle2-angle1)%(2*pi)
+        return Shadow(start, lenght)
     def compute_visibility(self, start, max_range=float("inf")):
         gen = FOVWalkGen(start)
-        start_center = state.add_tuples(start, (.5,.5))
         shadows = []
         steps = 0
+        lits = set()
         while not (len(shadows) == 1 and shadows[0].is_full_circle()):
             steps += 1
             pos = next(gen)
-            if state.distance(start, pos) > max_range:
+            if state.abs_distance(start, pos) > max_range:
                 break
             if not self.map[pos]:
                 continue
@@ -319,12 +397,14 @@ class GameWindow(state.Window):
             shadow = self.compute_shadow(start, pos)
             if any(s.strictly_contains(shadow) for s in shadows):
                 continue
-            elif any(s in shadow for s in shadows):
-                self.map[pos].known = True
-                self.map[pos].lit = 1
+            elif any((s in shadow or shadow in s) for s in shadows):
+                lits.add(pos)
+                #self.map[pos].known = True
+                #self.map[pos].lit = 2
             elif self.map[pos]:
-                self.map[pos].known = True
-                self.map[pos].lit = 2
+                lits.add(pos)
+                #self.map[pos].known = True
+                #self.map[pos].lit = 2
             if self.map[pos] and not self.map[pos].wall:
                 continue
                 
@@ -335,9 +415,12 @@ class GameWindow(state.Window):
                 else:
                     i += 1
             shadows.append(shadow)
+        return lits
     def update_seen(self):
         self.map.unlit()
-        self.compute_visibility(state.game_frame.creatures[state.game_frame.hero_uuid].pos, max_range=10)
+        for pos in self.compute_visibility(state.game_frame.get_hero().pos, max_range=20):
+            self.map[pos].lit = 2
+            self.map[pos].known = True
         self.map.lit_known()
     def draw_map(self):
         for y in range(1, self.height-1):

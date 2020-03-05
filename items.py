@@ -11,6 +11,16 @@ POTION_ID = 3
 class InventoryWindow(state.Window):
     pass
 
+class Effect:
+    def __init__(self, name, modifiers):
+        self.name = name
+        self.modifiers = modifiers
+    def __getattr__(self, key):
+        return self.modifiers[key]
+    def __contains__(self, key):
+        return key in self.modifiers
+    def __setattr__(self, key, value):
+        self.modifiers[key] = value
 
 class Inventory:
     def __init__(self, slots=None, inventory=None):
@@ -45,6 +55,8 @@ class Inventory:
             "slots": {key: value.save() for key, value in inventory.slots.items()},
             "inventory": [item.save() for item in inventory.inventory]
         }
+    def inventory_effects(self):
+        pass
 
         
 

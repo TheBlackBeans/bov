@@ -16,7 +16,10 @@ LEFT = (0, -1)
 
 # MULTIPLATFORM ALIASES
 ENTER_ALIASES = {curses.KEY_ENTER, ord("\n"), ord("\r")}
+BACKSPACE_ALIASES = {curses.KEY_BACKSPACE, 127}
 QUIT_ALIASES = {ord("q"), ord("Q")}
+ARGQUIT_ALIASES = {ord(curses.ascii.ctrl("x"))}
+
 
 # Key handler
 keyhandler = KeyHandler()
@@ -29,6 +32,25 @@ PRIORITIES = {
 
 ### UTILITY ###
 
+def abs_distance(pos1,pos2):
+    # Manhatan distance
+    y1,x1 = pos1
+    y2,x2 = pos2
+    return math.ceil(math.sqrt((y2-y1)**2+(x2-x1)**2))
+
+def diag_distance(pos1, pos2):
+    # Chebyshev distance
+    y1,x1 = pos1
+    y2,x2 = pos2
+    dx, dy = abs(x2-x1), abs(y2-y1)
+    return dy+dx-min(dx,dy)
+
+def distance(pos1,pos2):
+    # Euclidian distance
+    y1,x1 = pos1
+    y2,x2 = pos2
+    return abs(y1-y2)+abs(x1-x2)
+    
 def rad2deg(a):
     return a*180/math.pi
 
@@ -44,11 +66,6 @@ def message(*args, source="game"):
 def output(*args, sep=' '):
     message_window.update_messages(sep.join(str(e) for e in args))
 
-def distance(pos1,pos2):
-    y1,x1 = pos1
-    y2,x2 = pos2
-    return abs(y1-y2)+abs(x1-x2)
-    
 def quit():
     raise QuitGame()
     
@@ -111,6 +128,7 @@ class Window:
                         index += 1
                     else:
                         break
+                index += 1
                 char = char[index:]
                 color = int(color)
             attributes |= curses.color_pair(color)
@@ -130,6 +148,7 @@ class Window:
                 while i < len(string) and string[i] in '0123456789':
                     color += string[i]
                     i += 1
+                i += 1
                 color = int(color)
             else:
                 uptonow += 1

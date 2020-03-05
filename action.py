@@ -1,4 +1,4 @@
-import state, curses, color, creature
+import state, curses, color, creature, math, string
 
 class ActionFrame(state.Frame):
     def reset(self):
@@ -29,7 +29,7 @@ class ActionFrame(state.Frame):
             pass
         elif key == ord(" "):
             self.action.select()
-        elif key == ord(":"): # ESC
+        elif key in state.ARGQUIT_ALIASES: # ESC
             self.reset()
         else:
             return False
@@ -69,7 +69,7 @@ class Action:
     def set_arg(self, arg, value):
         self.args[arg].set_value(value)
     def repr_string(self):
-        return " ".join(str(e) if ((i-1) != self.index or i==0) else ("\\C5" + str(e) + "\\C1" if not e.active else "\\C6" + str(e) + "\\C1") for i, e in enumerate([self.name] + self.args))
+        return " ".join(str(e) if ((i-1) != self.index or i==0) else ("\\C5;" + str(e) + "\\C1;" if not e.active else "\\C6;" + str(e) + "\\C1;") for i, e in enumerate([self.name] + self.args))
     def do_action(self):
         if not all(arg.value != None for arg in self.args):
             return False
@@ -138,7 +138,7 @@ class Type:
         state.keyhandler.add_handler(state.PRIORITIES["Argument"])(self.get_key)
         self.init()
 
-class AskWindow(state.Window):
+class AskListWindow(state.Window):
         def __init__(self, parent, items, border=True):
             self.items = items
             self.parent = parent
@@ -167,6 +167,76 @@ class AskWindow(state.Window):
             self.clean()
             self.border()
             self.draw_menu()
+
+class AskStringWindow(state.Window):
+    def __init__(self, parent, max_string=float("inf"), border=True):
+        self.parent = parent
+        sc_height, sc_width = self.parent.size
+        self.height = 3
+        self.width = min(2*sc_width//3,max_string+3)
+        self.y = sc_height//2-(self.height//2)
+        self.x = sc_width//2-(self.width//2)
+        self.size = (self.height, self.width)
+        self.max_string = max_string
+        self.index = 0
+        self.offset = 0
+        self.string = ""
+        self._border = border
+    def clean(self):
+        self.addstr(1,0," "*(self.width-2))
+    def draw_string(self):
+        string = self.string[self.offset:self.offset+self.width-3]
+        if string:
+            string = string[:self.index-1] + '\\C5;' + string[self.index-1] + '\\C1;' + string[self.index:]
+        self.addstr(1,1,string)
+    def select_p(self):
+        if self.index == 1:
+            if self.offset > 0:
+                self.offset -= 1
+        else:
+            self.index -= 1
+    def select_n(self):
+        if self.index < self.width-3 and self.index < len(self.string)-self.offset:
+            self.index += 1
+        elif self.index < len(self.string) - self.offset:
+            self.offset += 1
+    def add_char(self, char):
+        if len(self.string) < self.max_string:
+            self.string = self.string[:self.index]+char+self.string[self.index:]
+        self.select_n()
+    def del_char(self):
+        if self.string:
+            self.string = self.string[:self.index-1]+self.string[self.index:]
+        self.select_p()
+    def draw(self):
+        self.clean()
+        self.border()
+        self.draw_string()
+        
+            
+class AskString(Type):
+    def __init__(self, max_string=float("inf")):
+        self.max_string = max_string
+    def init(self):
+        self.window = AskStringWindow(state.screen, self.max_string)
+        state.screen.add_window(self.window)
+    def _release(self):
+        state.screen.remove_window(self.window)
+    def get_key(self, key):
+        if key == curses.KEY_RIGHT:
+            self.window.select_n()
+        elif key == curses.KEY_LEFT:
+            self.window.select_p()
+        elif key in state.ENTER_ALIASES:
+            self.returner(ArgumentValue(self.window.string, self.window.string))
+        elif key in state.ARGQUIT_ALIASES:
+            return False # allow exit
+        elif chr(key) in string.ascii_letters + string.digits + '-_#@()[]{}+=$|':
+            self.window.add_char(chr(key))
+        elif key in state.BACKSPACE_ALIASES:
+            self.window.del_char()
+        return True
+        
             
 class AskFromList(Type):
     def __init__(self, items):
@@ -174,7 +244,7 @@ class AskFromList(Type):
         # shows repr, returns value
         self.items = items
     def init(self):
-        self.window = AskWindow(state.screen, [repr for repr, value in self.items])
+        self.window = AskListWindow(state.screen, [repr for repr, value in self.items])
         state.screen.add_window(self.window)
     def _release(self):
         state.screen.remove_window(self.window)
@@ -185,10 +255,18 @@ class AskFromList(Type):
             self.window.select_p()
         elif key in state.ENTER_ALIASES:
             self.returner(ArgumentValue(*self.items[self.window.index]))
-        elif key == ord(":"):
+        elif key in state.ARGQUIT_ALIASES:
             return False # allow exit
         return True
         
+
+class ListProxy:
+    def __init__(self, value):
+        self.value = value
+    def __getitem__(self, index):
+        return str(index), self.value[index]
+    def __iter__(self):
+        return (self[i] for i in range(len(self.value)))
     
 class PromptType(Type):
     def init(self):
@@ -202,11 +280,13 @@ class PromptType(Type):
         return True
     def check_pos_return(self, pos):
         return True
+    def str_pos(self, pos):
+        return str(pos)
     def check_realpos_return(self, pos):
         return True
     def return_pos(self):
         pos = self.convert_pos(self.pos)
-        self.returner(ArgumentValue(str(pos), pos))
+        self.returner(ArgumentValue(self.str_pos(pos), pos))
     def get_key(self, key):
         
         if key == curses.KEY_DOWN:
@@ -229,13 +309,16 @@ class PromptType(Type):
         return self.pos_to_realpos(pos)
     def move(self, dir):
         ny, nx = state.add_tuples(self.pos, dir)
-        if 1 <= ny < state.game_frame.window.height-1 and 1 <= state.game_frame.window.width-1 and self.check_pos((ny,nx)):
+        realpos = state.sub_tuples((ny,nx), state.game_frame.window.offset)
+        if 1 <= ny < state.game_frame.window.height-1 and 1 <= state.game_frame.window.width-1 and self.check_pos((ny,nx)) and state.game_frame.window.map[realpos] and state.game_frame.window.map[realpos].lit == 2:
             self.pos = (ny, nx)
         state.game_frame.window.add_highlight(self.pos)
             
 class PromptCreature(PromptType):
     def __init__(self, check_range=lambda x: True):
         self.check_range = check_range
+    def str_pos(self, pos):
+        return str(state.game_frame.get_creature(pos))
     def init_pos(self):
         self.pos = state.add_tuples(state.game_frame.get_hero().pos, state.game_frame.window.offset)
         self.base_pos = self.pos
@@ -255,8 +338,18 @@ class PromptPos(PromptType):
     def init_pos(self):
         self.pos = state.add_tuples(state.game_frame.get_hero().pos, state.game_frame.window.offset)
         
-        state.keyhandler.add_handler(state.PRIORITIES["Argument"])(self.get_key)
 
+class PromptDoor(PromptType):
+    def __init__(self, max_range=1):
+        self.max_range = max_range
+    def check_realpos_return(self, pos):
+        return state.game_frame.window.map[pos] and state.game_frame.window.map[pos].char == "+" and len(state.game_frame.window.map[pos].creatures) == 0
+    def init_pos(self):
+        self.pos = state.add_tuples(state.game_frame.get_hero().pos, state.game_frame.window.offset)
+        self.base_pos = self.pos
+    def check_pos(self, pos):
+        return state.distance(self.base_pos, pos) <= self.max_range
+        
         
 def look(pos):
     for uuid in state.game_frame.window.map[pos].creatures:
@@ -287,7 +380,7 @@ def idle():
     state.game_frame.played = True
 
 def attack(creature):
-    state.game_frame.get_hero().attack(creature, state.game_frame.get_hero().strenght)
+    state.game_frame.get_hero().attack(creature)
     state.game_frame.played = True
 
 def left():
@@ -338,16 +431,50 @@ def switch():
     else:
         state.game_frame.window.hide = True
         
-def shadow(pos1, pos2):
+def shadow(pos1):
     pos = state.game_frame.get_hero().pos
     w = state.game_frame.window
-    shadow1 = w.compute_shadow(pos1,pos2)
-    a1 = state.rad2deg(shadow1.left)
-    a2 = state.rad2deg(shadow1.right)
-    state.message("Shadow: %s-%s" % (int(a1), int(a2)))
-        
+    shadow = w.compute_shadow(pos,pos1)
+    a1 = state.rad2deg(shadow.start)
+    a2 = state.rad2deg(shadow.start+shadow.lenght)
+    state.message("Shadow #%s: %s=>%s" % (len(state.game_frame.shadows), int(a1), int(a2)))
+    state.game_frame.shadows.append(shadow)
+
+def join(shadow1, shadow2):
+    shadow = shadow1.copy()
+    shadow.join(shadow2)
+    a1 = state.rad2deg(shadow.start)
+    a2 = state.rad2deg(shadow.start+shadow.lenght)
+    state.message("Shadow #%s: %s=>%s" % (len(state.game_frame.shadows), int(a1), int(a2)))
+    state.game_frame.shadows.append(shadow)
+
+def compare(shadow1, shadow2):
+    state.message("1 in 2:  %s" % (shadow1 in shadow2))
+    state.message("2 in 1:  %s" % (shadow2 in shadow1))
+    state.message("1 >in 2: %s" % shadow2.strictly_contains(shadow1))
+    state.message("2 >in 1: %s" % shadow1.strictly_contains(shadow2))
+
+def name(creature, name):
+    state.game_frame.get_creature(creature).str = name
+
+def open_door(pos):
+    door = state.game_frame.window.map[pos]
+    if door.wall == True:
+        state.output("Door opened")
+        door.wall = False
+    else:
+        state.output("Door is already open")
+
+def close(pos):
+    door = state.game_frame.window.map[pos]
+    if door.wall == False:
+        state.output("Door closed")
+        door.wall = True
+    else:
+        state.output("Door is already closed")
+    
 def init_actions():
-    global look_action, quit_action, idle_action, attack_action, left_action, up_action, right_action, down_action, left_action, move_mode_action, save_action, create_action, delete_action, delete_action, vertexes_action, coords_action, switch_action, shadow_action
+    global look_action, quit_action, idle_action, attack_action, left_action, up_action, right_action, down_action, left_action, move_mode_action, save_action, create_action, delete_action, delete_action, vertexes_action, coords_action, switch_action, shadow_action, compare_action, name_action, join_action, open_action, close_action
     look_action = Action(
         "look",
         [Argument("pos", PromptPos())],
@@ -441,6 +568,36 @@ def init_actions():
 
     shadow_action = Action(
         "shadow",
-        [Argument("pos1", PromptPos()), Argument("pos2", PromptPos())],
+        [Argument("pos", PromptPos())],
         shadow
+    )
+
+    compare_action = Action(
+        "compare",
+        [Argument("shadow1", AskFromList(ListProxy(state.game_frame.shadows))), Argument("shadow2", AskFromList(ListProxy(state.game_frame.shadows)))],
+        compare
+    )
+
+    join_action = Action(
+        "join",
+        [Argument("shadow1", AskFromList(ListProxy(state.game_frame.shadows))), Argument("shadow2", AskFromList(ListProxy(state.game_frame.shadows)))],
+        join
+    )
+
+    name_action = Action(
+        "name",
+        [Argument("creature", PromptCreature()), Argument("name", AskString())],
+        name
+    )
+
+    open_action = Action(
+        "open",
+        [Argument("door", PromptDoor())],
+        open_door
+    )
+
+    close_action = Action(
+        "close",
+        [Argument("door", PromptDoor())],
+        close
     )
