@@ -65,6 +65,7 @@ class Constructor:
 
     
 class Creature:
+    DEFAULT_IS_PICKABLE = SaveInterface(bool, bool, False)
     DEFAULT_CHAR = SaveInterface(str, str, "%")
     DEFAULT_POS = SaveInterface(tuple, list, (0,0))
     DEFAULT_COLOR = SaveInterface(int, int, 4)
@@ -86,7 +87,7 @@ class Creature:
     DEFAULT_IS_HERO = SaveInterface(bool, bool, False)
     DEFAULT_IS_WALKABLE = SaveInterface(bool, bool, False)
     DEFAULT_EFFECTS = SaveInterface(list, list, [])
-    CREATURE_ATTRIBUTES = {"char", "pos", "color", "speed", "life", "max_life", "mana", "max_mana", "str", "armor", "resistance", "strenght", "max_weight", "weight", "inventory", "_dead", "creature_id", "uuid", "is_hero", "is_walkable", "effects"}
+    CREATURE_ATTRIBUTES = {"is_pickable", "char", "pos", "color", "speed", "life", "max_life", "mana", "max_mana", "str", "armor", "resistance", "strenght", "max_weight", "weight", "inventory", "_dead", "creature_id", "uuid", "is_hero", "is_walkable", "effects"}
     def __init__(self, **attributes):
         for key in attributes.keys():
             if key not in self.CREATURE_ATTRIBUTES:
@@ -117,7 +118,7 @@ class Creature:
     def attack(self, target):
         self._attack(target, self.compute_attack())
     def _attack(self, target, damage):
-        state.message("attacks %s" % str(state.game_frame.get_creature(target)), source=str(self))
+        state.output("%s attacks %s" % (str(self), str(state.game_frame.get_creature(target))))
         state.game_frame.get_creature(target).hurt(damage, self.uuid)
     def react_to_attack(self, damage, source):
         pass
@@ -125,9 +126,9 @@ class Creature:
         pass
     def die(self):
         self._dead = True
-        state.game_frame.remove_creature(self.uuid)
-        state.message("dies", source=str(self))
         self.on_death()
+        state.game_frame.remove_creature(self.uuid)
+        state.output("%s dies" % str(self))
     def _post_init(self):
         pass
     def move(self, dir):
@@ -144,7 +145,7 @@ class Creature:
         self.react_to_attack(damage, source)
         self.take_damage(self.compute_realdamage(damage))
     def take_damage(self, damage):
-        state.message("hurt for %s" % damage, source=str(self))
+        state.output("%s hurt for %s" % (str(self), damage))
         self.life -= damage
         if self.life <= 0:
             self.die()
@@ -239,12 +240,26 @@ class Daemon(AutoCreature):
         if self.ennemy!=-1:
             soul.react_to_attack(0, self.ennemy)
         state.game_frame.create_creature(soul)
-    
+
 class Item(Creature):
-    pass
+    DEFAULT_CREATURE_ID = SaveInterface(int, int, 3)
+    DEFAULT_CHAR = SaveInterface(str, str, ")")
+    DEFAULT_IS_WALKABLE = SaveInterface(bool, bool, True)
+    DEFAULT_SLOT = SaveInterface(str, str, "inv")
+    DEFAULT_ATTRIBUTES = SaveInterface(list, list, [])
+    DEFAULT_IS_PICKABLE = SaveInterface(bool, bool, True)
+    DEFAULT_STR = SaveInterface(str, str, "item")
+    def __init__(self, **attributes):
+        self.CREATURE_ATTRIBUTES = self.CREATURE_ATTRIBUTES.union({"slot", "attributes"})
+        Creature.__init__(self, **attributes)
+    def take_turn(self):
+        return []
+
+alive_creatures = {0,1,2}
     
 creature_map = {
     0: Hero,
     1: Daemon,
-    2: Soul
+    2: Soul,
+    3: Item
 }

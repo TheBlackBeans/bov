@@ -236,7 +236,8 @@ class AskString(Type):
         elif key in state.BACKSPACE_ALIASES:
             self.window.del_char()
         return True
-        
+
+
             
 class AskFromList(Type):
     def __init__(self, items):
@@ -259,7 +260,16 @@ class AskFromList(Type):
             return False # allow exit
         return True
         
+class AskItem(AskFromList):
+    def __init__(self):
+        pass
+    def init(self):
+        self.pos = state.game_frame.get_hero().pos
+        self.items = [(str(state.game_frame.get_creature(c)), c) for c in state.game_frame.window.map[self.pos].creatures if state.game_frame.get_creature(c).is_pickable]
+        self.window = AskListWindow(state.screen, [repr for repr, item in self.items])
+        state.screen.add_window(self.window)
 
+    
 class ListProxy:
     def __init__(self, value):
         self.value = value
@@ -267,6 +277,17 @@ class ListProxy:
         return str(index), self.value[index]
     def __iter__(self):
         return (self[i] for i in range(len(self.value)))
+
+class TileProxy:
+    def __init__(self, pos):
+        self.pos = pos
+    @property
+    def creatures(self):
+        return state.game_frame.window.map[tuple(self.pos)].creatures
+
+class HeroPosProxy:
+    def __getitem__(self, index):
+        return state.game_frame.get_hero().pos[index]
     
 class PromptType(Type):
     def init(self):
@@ -353,20 +374,23 @@ class PromptDoor(PromptType):
         
 def look(pos):
     for uuid in state.game_frame.window.map[pos].creatures:
-        creature = state.game_frame.get_creature(uuid)
-        if creature.max_life <= creature.life:
+        entity = state.game_frame.get_creature(uuid)
+        if entity.creature_id not in creature.alive_creatures:
+            state.output("You look at a %s (id=%s)" % (str(entity), entity.creature_id))
+            return
+        if entity.max_life <= entity.life:
             condition = "very healthy"
-        elif creature.life >= 3*creature.max_life//5:
+        elif entity.life >= 3*entity.max_life//5:
             condition = "healthy"
-        elif creature.life >= creature.max_life//5:
+        elif entity.life >= entity.max_life//5:
             condition = "wounded"
-        elif creature.life >= creature.max_life//10:
+        elif entity.life >= entity.max_life//10:
             condition = "severly wounded"
-        elif creature.life > 0:
+        elif entity.life > 0:
             condition = "almost dead"
         else:
             condition = "dead"
-        state.message("You look at a %s (id=%s), which looks %s" % (str(creature), creature.creature_id, condition), source="look")
+        state.output("You look at a %s (id=%s), which looks %s" % (str(entity), entity.creature_id, condition))
         return
     if state.game_frame.window.map[pos]:
         if state.game_frame.window.map[pos].wall:
@@ -379,8 +403,8 @@ def look(pos):
 def idle():
     state.game_frame.played = True
 
-def attack(creature):
-    state.game_frame.get_hero().attack(creature)
+def attack(entity):
+    state.game_frame.get_hero().attack(entity)
     state.game_frame.played = True
 
 def left():
@@ -454,8 +478,8 @@ def compare(shadow1, shadow2):
     state.message("1 >in 2: %s" % shadow2.strictly_contains(shadow1))
     state.message("2 >in 1: %s" % shadow1.strictly_contains(shadow2))
 
-def name(creature, name):
-    state.game_frame.get_creature(creature).str = name
+def name(entity, name):
+    state.game_frame.get_creature(entity).str = name
 
 def open_door(pos):
     door = state.game_frame.window.map[pos]
@@ -472,9 +496,14 @@ def close(pos):
         door.wall = True
     else:
         state.output("Door is already closed")
+
+def pickup(item):
+    state.game_frame.window.map[state.game_frame.get_hero().pos].remove_creature(item)
+    state.game_frame.get_hero().inventory.add_item(state.game_frame.get_creature(item))
     
+        
 def init_actions():
-    global look_action, quit_action, idle_action, attack_action, left_action, up_action, right_action, down_action, left_action, move_mode_action, save_action, create_action, delete_action, delete_action, vertexes_action, coords_action, switch_action, shadow_action, compare_action, name_action, join_action, open_action, close_action
+    global look_action, quit_action, idle_action, attack_action, left_action, up_action, right_action, down_action, left_action, move_mode_action, save_action, create_action, delete_action, delete_action, vertexes_action, coords_action, switch_action, shadow_action, compare_action, name_action, join_action, open_action, close_action, pickup_action
     look_action = Action(
         "look",
         [Argument("pos", PromptPos())],
@@ -538,7 +567,7 @@ def init_actions():
 
     create_action = Action(
         "create",
-        [Argument("entity", AskFromList([("daemon", creature.Daemon), ("soul", creature.Soul)])), Argument("pos", PromptPos(check_realpos_r=state.game_frame.is_walkable))],
+        [Argument("entity", AskFromList([(entity.DEFAULT_STR(), entity) for entity in creature.creature_map.values()])), Argument("pos", PromptPos(check_realpos_r=state.game_frame.is_walkable))],
         create
     )
 
@@ -601,3 +630,10 @@ def init_actions():
         [Argument("door", PromptDoor())],
         close
     )
+
+    pickup_action = Action(
+        "pickup",
+        [Argument("item", AskItem())],
+        pickup
+    )
+        

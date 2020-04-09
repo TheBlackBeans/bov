@@ -299,12 +299,16 @@ class GameFrame(state.Frame):
             state.action_frame.load_action(
                 state.action.close_action
             )
+        elif key == ord("p"):
+            state.action_frame.load_action(
+                state.action.pickup_action
+            )
         else:
             return False
         return True
     def load_map(self):
-        #self.window.map.load_file("maps/map2.mp")
-        self.window.map.load_custom()
+        self.window.map.load_file("maps/map2.mp")
+        #self.window.map.load_custom()
     def move(self, what, dir):
         if self.is_walkable(state.add_tuples(self.creatures[what].pos, dir)):
             self.creatures[what].move(dir)

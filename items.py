@@ -9,7 +9,13 @@ SHIELD_ID = 2
 POTION_ID = 3
 
 class InventoryWindow(state.Window):
-    pass
+    def draw(self):
+        self.border()
+        self.draw_items()
+    def draw_items(self):
+        inventory = state.game_frame.get_hero().inventory
+        for i, item in enumerate(inventory.inventory):
+            self.addstr(1+i,1,str(item))
 
 class Effect:
     def __init__(self, name, modifiers):
@@ -40,6 +46,8 @@ class Inventory:
             self.inventory = inventory
     def __eq__(self, right):
         return self.slots == right.slots and self.inventory == right.inventory
+    def add_item(self, item):
+        self.inventory.append(item)
     @classmethod
     def load(cls, value):
         slots = value["slots"]
