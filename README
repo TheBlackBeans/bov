@@ -1,0 +1,18 @@
+
+ ▄▄▄▄    ▒█████   ██▒   █▓
+▓█████▄ ▒██▒  ██▒▓██░   █▒
+▒██▒ ▄██▒██░  ██▒ ▓██  █▒░
+▒██░█▀  ▒██   ██░  ▒██ █░░
+░▓█  ▀█▓░ ████▓▒░   ▒▀█░  
+░▒▓███▀▒░ ▒░▒░▒░    ░ ▐░  
+▒░▒   ░   ░ ▒ ▒░    ░ ░░  
+ ░    ░ ░ ░ ░ ▒       ░░  
+ ░          ░ ░        ░  
+      ░               ░   
+
+
+Yet another rogue like!
+
+Done entierly with curses (what a pain!).
+
+*Renders ugly with tmux (curses knows why...)*
