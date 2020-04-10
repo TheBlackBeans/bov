@@ -127,6 +127,7 @@ class PosError(BaseException): pass
         
 class GameFrame(state.Frame):
     def _post_init(self):
+        self.auto_open = True
         self.window.map = state.map.Map()
         self.creatures = {}
         self.items = {}
@@ -326,11 +327,19 @@ class GameFrame(state.Frame):
         self.window.map.load_file(state.realpath("maps/map2.mp"))
         #self.window.map.load_custom()
     def move(self, what, dir):
+        if self.could_be_open(state.add_tuples(self.creatures[what].pos, dir)) and self.auto_open:
+            self.open(state.add_tuples(self.creatures[what].pos, dir))
         if self.is_walkable(state.add_tuples(self.creatures[what].pos, dir)):
             self.creatures[what].move(dir)
             if what == self.hero_uuid:
                 self.played = True
                 self.window.has_moved = True
+    def could_be_open(self, pos):
+        return self.window.map[pos] and self.window.map[pos].char == "+" and self.window.map[pos].wall
+    def open(self, pos):
+        self.window.map[pos].wall = False
+        self.window.map[pos].obscure = False
+        state.output("Door opened!")
 
 class GameWindow(state.Window):
     def _post_init(self):
@@ -428,7 +437,7 @@ class GameWindow(state.Window):
                 lits.add(pos)
                 #self.map[pos].known = True
                 #self.map[pos].lit = 2
-            if self.map[pos] and not self.map[pos].wall:
+            if self.map[pos] and not self.map[pos].obscure:
                 continue
                 
             i = 0

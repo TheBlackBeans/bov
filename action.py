@@ -397,9 +397,9 @@ def look(pos):
         return
     if state.game_frame.window.map[pos]:
         if state.game_frame.window.map[pos].wall:
-            state.output("Tile not walkable")
+            state.output("%s not walkable" % state.game_frame.window.map[pos].desc.capitalize())
         else:
-            state.output("Tile walkable")
+            state.output("%s walkable" % state.game_frame.window.map[pos].desc.capitalize())
     else:
         state.output("Nothing...")
 
@@ -495,6 +495,7 @@ def open_door(pos):
     if door.wall == True:
         state.output("Door opened")
         door.wall = False
+        door.obscure = False
     else:
         state.output("Door is already open")
 
@@ -503,6 +504,7 @@ def close(pos):
     if door.wall == False:
         state.output("Door closed")
         door.wall = True
+        door.obscure = True
     else:
         state.output("Door is already closed")
 

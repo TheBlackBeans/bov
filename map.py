@@ -1,9 +1,14 @@
 import json, creature, state, random, math
 
 class Tile:
-    def __init__(self, char, wall):
+    def __init__(self, char, wall, obscure=None, desc="tile"):
         self.char = char
         self.wall = wall
+        self.desc = desc
+        if obscure == None:
+            self.obscure = wall
+        else:
+            self.obscure = obscure
         # lit
         #  0 - not lit (invisible)
         #  1 - known, but not lit (grey, doesn't show monsters)
@@ -42,6 +47,7 @@ class Tile:
 class NoTile:
     def __init__(self):
         self.wall = True
+        self.obscure = True
         self.creatures = []
         self.items = []
         self.known = False
@@ -570,7 +576,13 @@ class Map:
                     if char == ".":
                         self.map[y,x] = Tile(".", False)
                     elif char == "#":
-                        self.map[y,x] = Tile("#", True)
+                        self.map[y,x] = Tile("#", True, desc="wall")
+                    elif char == "+":
+                        self.map[y,x] = Tile("+", True, desc="door")
+                    elif char == "C":
+                        self.map[y,x] = Tile("C", True, False, desc="throne")
+                    else:
+                        self.map[y,x] = Tile(char, True, False)
             objs = json.loads(objs)
         state.game_frame.pre_load()
         state.game_frame.load_creatures([creature.creature_map[c["creature_id"]](**c) for c in objs["creatures"]])
