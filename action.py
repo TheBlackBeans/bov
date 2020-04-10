@@ -549,7 +549,7 @@ p -> pickup <item>
 [C-l] -> load
 C-x -> *exit current command*
 next -> *scroll down messages*
-prior -> *scoll up message*
+prior -> *scoll up messages*
 u -> switch autotrigger"""
     )
     
