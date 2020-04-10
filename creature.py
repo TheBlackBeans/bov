@@ -277,17 +277,10 @@ class Item(Creature):
     def take_turn(self):
         return []
     
-alive_creatures = {0}
-
-creature_map = {
-    0: Hero,
-    3: Item
-}
-
-creatures = {}
 ais = {
     "neutral-standard": AutoCreature,
-    "item": Item
+    "item": Item,
+    "idle": Creature
 }
 def crt2dict(crt):
     crt = crt.replace("\n", "")
@@ -300,6 +293,17 @@ def crt2dict(crt):
     return result
 
 def load_creatures():
+    global creature, creature_map, alive_creatures
+
+    alive_creatures = {0}
+
+    creature_map = {
+        0: Hero,
+        3: Item
+    }
+
+    creatures = {}
+
     pwd, _, files = next(os.walk(os.path.join(state.BASEDIR, "creatures/")))
     for file in files:
         if not file.endswith(".crt"):
