@@ -17,7 +17,8 @@ class MessageWindow(Window):
         self.messages = []
         self.msg = []
     def update_messages(self, message):
-        self.messages.append(message)
+        for msg in message.split("\n"):
+            self.messages.append(msg)
         self.get_messages()
     def split_message(self, msg, width):
         return [msg[i*width:(i+1)*width] for i in range(ceil(len(msg)/width))]
