@@ -32,7 +32,10 @@ class Tile:
     def add_creature(self, creature):
         self.creatures.append(creature)
     def remove_creature(self, creature):
-        self.creatures.remove(creature)
+        try:
+            self.creatures.remove(creature)
+        except ValueError:
+            state.warning("Trying to remove %s, whereas there are no such entity in that tile." % creature)
     def __bool__(self):
         return True
 
@@ -550,6 +553,8 @@ class Map:
             tile.items.clear()
     def load_custom(self):
         #gen = BSP(60, 40, 3, dispatch=.5)
+        self.custom = True
+        self.has_map = True
         ops = GENERATE_OPS[2]
         gen = ops["gen"](*ops["args"], **ops["kwargs"])
         self.map = gen.generate()
@@ -557,6 +562,7 @@ class Map:
         state.game_frame.load_creatures([creature.Hero(pos=(1,1),creature_id=0)])
         state.game_frame.load_items([])
     def load(self):
+        self.map = {}
         with open(self.file) as f:
             objs, *self.map_lines = f.read().split("\n")
             for y, line in enumerate(self.map_lines):
@@ -571,7 +577,7 @@ class Map:
         state.game_frame.load_items([items.item_map[item["item_id"]](**item) for item in objs["items"]])
     def save(self):
         if not self.has_map or self.is_custom:
-            return
+            return 0
         objs = {
             "creatures": [
                 c.save() for c in state.game_frame.creatures.values()
@@ -583,7 +589,9 @@ class Map:
         with open(self.file, "w") as f:
             f.write(json.dumps(objs) + "\n")
             f.write("\n".join(self.map_lines))
-        
+        return 1
     def load_file(self, file):
+        self.has_map = True
+        self.custom = False
         self.file = file
         self.load()

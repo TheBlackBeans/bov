@@ -2,7 +2,7 @@
 # Contains every public shared objects,
 # so at any moment this represents the "state" of the program
 
-import curses, math
+import curses, math, os
 from verticalhandler import KeyHandler, QuitGame
 
 ### DEFINES ###
@@ -13,6 +13,8 @@ RIGHT = (0, 1)
 DOWN = (1, 0)
 LEFT = (0, -1)
 
+# Directory
+BASEDIR = os.path.dirname(os.path.abspath(__file__))
 
 # MULTIPLATFORM ALIASES
 ENTER_ALIASES = {curses.KEY_ENTER, ord("\n"), ord("\r")}
@@ -31,6 +33,13 @@ PRIORITIES = {
 
 
 ### UTILITY ###
+
+# To be sure game can be executed anywhere
+
+def realpath(*path):
+    return os.path.join(BASEDIR, *path)
+
+# Work with tuples
 
 def abs_distance(pos1,pos2):
     # Manhatan distance
@@ -60,7 +69,13 @@ def add_tuples(*tuples):
 def sub_tuples(t1, t2):
     return tuple(a-b for a, b in zip(t1, t2))
 
+# I/O utilitaries
+
+def warning(message):
+    output('\\C11[Warning]\\C1 ' + message)
+
 def message(*args, source="game"):
+    warning("deprecated usage of 'message'")
     output("["+source+"]",*args)
 
 def output(*args, sep=' '):
@@ -162,21 +177,6 @@ class Window:
             curses.textpad.rectangle(self.parent, self.y, self.x, self.y+self.height-1, self.x+self.width-2)
 
 
-### MAP ###
-# Map related classes
-
-# A tile is the most basic map component
-class Tile:
-    def __init__(self, char, wall):
-        self.char = char
-        self.wall = wall
-        self.lit = True
-    def draw(self):
-        if self.lit:
-            return self.char
-        else:
-            return " "
-
         
 ### OTHER ###
 
@@ -274,6 +274,6 @@ import action, verticalhandler, game, creature, items, color, map
 from items import Item, InventoryWindow, Inventory
 from action import ActionFrame, ActionWindow, Action
 from game import GameFrame, GameWindow
-from creature import Creature, Hero, Daemon
+from creature import Creature, Hero
 from color import colors
 from map import Map

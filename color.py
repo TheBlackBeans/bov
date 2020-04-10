@@ -41,10 +41,17 @@ def init_curses_color():
             0,
             0
         )
+        colors["ORANGE"] = 11
+        curses.init_color(
+            colors["ORANGE"],
+            680,
+            300,
+            300
+        )
     else:
         colors["GREY"] = colors["BLACK"]
         colors["RED2"] = colors["RED"]
-        
+        colors["ORANGE"] = colors["RED"]
 
     
         
@@ -72,3 +79,5 @@ def init_curses_color():
     curses.init_pair(9, colors["GREY"], colors["WHITE"])
     # 10 - Highlighted tile
     curses.init_pair(10, colors["RED2"], colors["WHITE"])
+    # 11 - Warning text
+    curses.init_pair(11, colors["ORANGE"], colors["WHITE"])

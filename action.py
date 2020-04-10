@@ -1,4 +1,4 @@
-import state, curses, color, creature, math, string
+import state, curses, color, creature, math, string, os
 
 class ActionFrame(state.Frame):
     def reset(self):
@@ -430,7 +430,10 @@ def turnmode(mode):
     state.game_frame.move_mode = mode
 
 def save():
-    state.game_frame.window.map.save()
+    if state.game_frame.window.map.save() == 0:
+        state.output("cannot save")
+    else:
+        state.output("saved into %s" % state.game_frame.window.map.file)
 
 def create(entity, pos):
     creature = entity(pos=pos)
@@ -501,9 +504,40 @@ def pickup(item):
     state.game_frame.window.map[state.game_frame.get_hero().pos].remove_creature(item)
     state.game_frame.get_hero().inventory.add_item(state.game_frame.get_creature(item))
     
-        
+def load(map_name):
+    if not map_name.endswith(".mp"):
+        map_name += ".mp"
+    file = os.path.join(state.BASEDIR, "maps", map_name)
+    state.game_frame.window.map.load_file(file)
+
+def help():
+    state.output(
+        """HELP - commands starting withing braces are debug only
+q -> quit
+l -> look
+i -> idle
+[arrows] -> move
+a -> attack <target>
+t -> turnmode <mode>
+s -> save
+[c] -> create <entity> <pos>
+[d] -> delete <pos>
+[z] -> vertexes <pos>
+[e] -> coords <pos>
+[r] -> switch
+[d] -> shadow
+[C] -> compare <shadow1> <shadow2>
+n -> name <creature> <name>
+[j] -> join <shadow1> <shadow2>
+o -> open <door>
+O -> close <door>
+p -> pickup <item>
+[C-l] -> load
+C-x -> exit current command"""
+    )
+    
 def init_actions():
-    global look_action, quit_action, idle_action, attack_action, left_action, up_action, right_action, down_action, left_action, move_mode_action, save_action, create_action, delete_action, delete_action, vertexes_action, coords_action, switch_action, shadow_action, compare_action, name_action, join_action, open_action, close_action, pickup_action
+    global look_action, quit_action, idle_action, attack_action, left_action, up_action, right_action, down_action, left_action, move_mode_action, save_action, create_action, delete_action, delete_action, vertexes_action, coords_action, switch_action, shadow_action, compare_action, name_action, join_action, open_action, close_action, pickup_action, load_action, help_action
     look_action = Action(
         "look",
         [Argument("pos", PromptPos())],
@@ -635,5 +669,15 @@ def init_actions():
         "pickup",
         [Argument("item", AskItem())],
         pickup
+    )
+    load_action = Action(
+        "load",
+        [Argument("map", AskString())],
+        load
+    )
+    help_action = Action(
+        "help",
+        [],
+        help
     )
         

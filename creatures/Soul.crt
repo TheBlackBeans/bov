@@ -1,0 +1,9 @@
+ai "neutral-standard";;
+creature_id 2;;
+char "s";;
+str "soul";;
+atk 5;;
+max_life 3;;
+life 3;;
+resistance 0;;
+armor 10;;

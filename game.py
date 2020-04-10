@@ -303,22 +303,32 @@ class GameFrame(state.Frame):
             state.action_frame.load_action(
                 state.action.pickup_action
             )
+        elif key == curses.ascii.ctrl(ord("l")):
+            state.action_frame.load_action(
+                state.action.load_action
+            )
+        elif key == ord("h"):
+            state.action_frame.load_action(
+                state.action.help_action
+            )
         else:
             return False
         return True
     def load_map(self):
-        self.window.map.load_file("maps/map2.mp")
+        self.window.map.load_file(state.realpath("maps/map2.mp"))
         #self.window.map.load_custom()
     def move(self, what, dir):
         if self.is_walkable(state.add_tuples(self.creatures[what].pos, dir)):
             self.creatures[what].move(dir)
             if what == self.hero_uuid:
                 self.played = True
+                self.window.has_moved = True
 
 class GameWindow(state.Window):
     def _post_init(self):
         self.offset = (20,20)
         self.hide = True
+        self.has_moved = True
     def pos_to_realpos(self, pos):
         return state.sub_tuples(pos, self.offset)
     def add_highlight(self, pos):
@@ -326,7 +336,8 @@ class GameWindow(state.Window):
     def draw(self):
         self.regulate_offset()
         self.border()
-        if self.hide:
+        if self.hide and self.has_moved:
+            self.has_moved = False
             self.update_seen()
         self.draw_map()
         self.map.unhighlight()

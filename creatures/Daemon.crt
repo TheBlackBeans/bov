@@ -1,0 +1,6 @@
+ai "neutral-standard";;
+creature_id 1;;
+char "&";;
+str "daemon";;
+atk 7;;
+on_death 2;;

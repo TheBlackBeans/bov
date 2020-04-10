@@ -1,4 +1,4 @@
-import state, random, items, queue, items
+import state, random, items, queue, items, os
 
 def options(pos):
     for dir in {state.UP, state.RIGHT, state.DOWN, state.LEFT}:
@@ -55,6 +55,8 @@ class SaveInterface:
         return self.save_type(value)
     def __call__(self):
         return self.load(self.value)
+    def copy(self):
+        return type(self)(self.value_type, self.save_type, self.value)
 
 class Constructor:
     def __init__(self, type, args):
@@ -87,7 +89,8 @@ class Creature:
     DEFAULT_IS_HERO = SaveInterface(bool, bool, False)
     DEFAULT_IS_WALKABLE = SaveInterface(bool, bool, False)
     DEFAULT_EFFECTS = SaveInterface(list, list, [])
-    CREATURE_ATTRIBUTES = {"is_pickable", "char", "pos", "color", "speed", "life", "max_life", "mana", "max_mana", "str", "armor", "resistance", "strenght", "max_weight", "weight", "inventory", "_dead", "creature_id", "uuid", "is_hero", "is_walkable", "effects"}
+    DEFAULT_ALIVE = SaveInterface(bool, bool, True)
+    CREATURE_ATTRIBUTES = {"is_pickable", "char", "pos", "color", "speed", "life", "max_life", "mana", "max_mana", "str", "armor", "resistance", "strenght", "max_weight", "weight", "inventory", "_dead", "creature_id", "uuid", "is_hero", "is_walkable", "effects", "alive"}
     def __init__(self, **attributes):
         for key in attributes.keys():
             if key not in self.CREATURE_ATTRIBUTES:
@@ -219,6 +222,24 @@ class AutoCreature(Creature):
                 break
         return [(self.speed, self.take_turn)]
 
+class CreatureHolder:
+    def __init__(self, ai, args):
+        self.ai = ai
+        self.args = args
+        for attr in ai.CREATURE_ATTRIBUTES:
+            rattr = "DEFAULT_" + attr.upper()
+            setattr(self, rattr, getattr(ai, rattr))
+        for attr, value in args.items():
+            rattr = "DEFAULT_" + attr.upper()
+            save_int = getattr(self, rattr).copy()
+            save_int.value = value
+            setattr(self, rattr, save_int)
+    def __call__(self, *args, **kwargs):
+        kargs = self.args.copy()
+        kargs.update(kwargs)
+        return self.ai(*args, **kargs)
+    
+"""
 class Soul(AutoCreature):
     DEFAULT_CHAR = SaveInterface(str, str, "s")
     DEFAULT_STR = SaveInterface(str, str, "soul")
@@ -240,7 +261,7 @@ class Daemon(AutoCreature):
         if self.ennemy!=-1:
             soul.react_to_attack(0, self.ennemy)
         state.game_frame.create_creature(soul)
-
+"""
 class Item(Creature):
     DEFAULT_CREATURE_ID = SaveInterface(int, int, 3)
     DEFAULT_CHAR = SaveInterface(str, str, ")")
@@ -249,17 +270,50 @@ class Item(Creature):
     DEFAULT_ATTRIBUTES = SaveInterface(list, list, [])
     DEFAULT_IS_PICKABLE = SaveInterface(bool, bool, True)
     DEFAULT_STR = SaveInterface(str, str, "item")
+    DEFAULT_ALIVE = SaveInterface(bool, bool, False)
     def __init__(self, **attributes):
         self.CREATURE_ATTRIBUTES = self.CREATURE_ATTRIBUTES.union({"slot", "attributes"})
         Creature.__init__(self, **attributes)
     def take_turn(self):
         return []
-
-alive_creatures = {0,1,2}
     
+alive_creatures = {0}
+
 creature_map = {
     0: Hero,
-    1: Daemon,
-    2: Soul,
     3: Item
 }
+
+creatures = {}
+ais = {
+    "neutral-standard": AutoCreature,
+    "item": Item
+}
+def crt2dict(crt):
+    crt = crt.replace("\n", "")
+    result = {}
+    for entry in crt.split(";;"):
+        if not entry.replace(" ","").replace("\t", ""): continue
+        key, value = entry.split(" ", 1)
+        value = eval(value)
+        result[key] = value
+    return result
+
+def load_creatures():
+    pwd, _, files = next(os.walk(os.path.join(state.BASEDIR, "creatures/")))
+    for file in files:
+        if not file.endswith(".crt"):
+            continue
+        with open(os.path.join(pwd, file)) as f:
+            c = f.read()
+        crt_name = file[:-4]
+        crt = crt2dict(c)
+        ai = ais[crt["ai"]]
+        args = {key: value for key, value in crt.items() if key in ai.CREATURE_ATTRIBUTES}
+
+        creatures[crt_name] = CreatureHolder(ai,args)
+        creature_map[crt["creature_id"]] = creatures[crt_name]
+        if args.get("alive", True):
+            alive_creatures.add(crt["creature_id"])
+        
+load_creatures()
