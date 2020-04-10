@@ -311,6 +311,10 @@ class GameFrame(state.Frame):
             state.action_frame.load_action(
                 state.action.help_action
             )
+        elif key == curses.KEY_PPAGE:
+            state.message_window.page_up()
+        elif key == curses.KEY_NPAGE:
+            state.message_window.page_down()
         else:
             return False
         return True

@@ -533,7 +533,9 @@ o -> open <door>
 O -> close <door>
 p -> pickup <item>
 [C-l] -> load
-C-x -> exit current command"""
+C-x -> exit current command
+next -> scroll down messages
+prior -> scoll up message"""
     )
     
 def init_actions():

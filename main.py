@@ -16,6 +16,7 @@ class MessageWindow(Window):
     def _post_init(self):
         self.messages = []
         self.msg = []
+        self.offset = 0
     def update_messages(self, message):
         for msg in message.split("\n"):
             self.messages.append(msg)
@@ -26,16 +27,28 @@ class MessageWindow(Window):
         self.msg = []
         height = self.height - 2
         width = self.width - 3
+        line_skiped = 0
         for message in self.messages[::-1]:
             for line in self.split_message(message, width)[::-1]:
+                line_skiped += 1
+                if line_skiped <= self.offset:
+                    continue
                 if len(self.msg) >= height:
                     break
                 self.msg.insert(0, line)
             if len(self.msg) >= height:
                 break
+    def page_up(self):
+        self.offset += 3
+        self.get_messages()
+    def page_down(self):
+        self.offset -= 3
+        self.offset = max(self.offset, 0)
+        self.get_messages()
     def draw_messages(self):
+        offset = self.height-len(self.msg)-2
         for i, line in enumerate(self.msg):
-            self.addstr(i+1, 1, line)
+            self.addstr(i+1+offset, 1, line)
     def draw(self):
         self.border()
         self.draw_messages()
