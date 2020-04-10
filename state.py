@@ -72,7 +72,7 @@ def sub_tuples(t1, t2):
 # I/O utilitaries
 
 def warning(message):
-    output('\\C11[Warning]\\C1 ' + message)
+    output('\\C11;[Warning]\\C1; ' + message)
 
 def message(*args, source="game"):
     warning("deprecated usage of 'message'")

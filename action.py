@@ -9,11 +9,14 @@ class ActionFrame(state.Frame):
         self.action = None
         state.keyhandler.add_handler(state.PRIORITIES["Action"])(self.get_key)
         state.keyhandler.disable_handler(state.PRIORITIES["Action"])
+        self.autotrigger = False
     def load_action(self, action):
         if self.action:
             self.action.delete()
         self.action = action
         state.keyhandler.enable_handler(state.PRIORITIES["Action"])
+        if self.autotrigger:
+            self.do_action()
     def do_action(self):
         if self.action:
             if not self.action.do_action(): return
@@ -394,14 +397,15 @@ def look(pos):
         return
     if state.game_frame.window.map[pos]:
         if state.game_frame.window.map[pos].wall:
-            state.message("Tile not walkable", source="look")
+            state.output("Tile not walkable")
         else:
-            state.message("Tile walkable", source="look")
+            state.output("Tile walkable")
     else:
-        state.message("Nothing...", source="look")
+        state.output("Nothing...")
 
 def idle():
     state.game_frame.played = True
+    state.output("idle")
 
 def attack(entity):
     state.game_frame.get_hero().attack(entity)
@@ -426,7 +430,7 @@ def down():
         state.game_frame.played = True
 
 def turnmode(mode):
-    state.message("move mode set to %s" % ({0: "real time", 1: "turn-by-turn"}[mode]), source="movemode")
+    state.output("move mode set to %s" % ({0: "real time", 1: "turn-by-turn"}[mode]))
     state.game_frame.move_mode = mode
 
 def save():
@@ -438,18 +442,18 @@ def save():
 def create(entity, pos):
     creature = entity(pos=pos)
     state.game_frame.create_creature(creature)
-    state.message("created %s at %s" % (creature, pos), source="create")
+    state.output("created %s at %s" % (creature, pos))
 
 def delete(pos):
     res = len(state.game_frame.window.map[pos].creatures)
     state.game_frame.remove_creatures_pos(pos)
-    state.message("deleted %s entities at %s" % (res, pos), source="delete")
+    state.output("deleted %s entities at %s" % (res, pos))
 
 def coords(pos):
-    state.message(pos, source="coords")
+    state.output(pos)
 
 def vertexes(pos):
-    state.message(state.game_frame.window.compute_vertex(state.game_frame.get_creature(state.game_frame.hero_uuid).pos, pos), source="vertexes")
+    state.output(state.game_frame.window.compute_vertex(state.game_frame.get_creature(state.game_frame.hero_uuid).pos, pos))
 
 def switch():
     if state.game_frame.window.hide:
@@ -457,6 +461,7 @@ def switch():
         state.game_frame.window.hide = False
     else:
         state.game_frame.window.hide = True
+    state.output("switched")
         
 def shadow(pos1):
     pos = state.game_frame.get_hero().pos
@@ -464,7 +469,7 @@ def shadow(pos1):
     shadow = w.compute_shadow(pos,pos1)
     a1 = state.rad2deg(shadow.start)
     a2 = state.rad2deg(shadow.start+shadow.lenght)
-    state.message("Shadow #%s: %s=>%s" % (len(state.game_frame.shadows), int(a1), int(a2)))
+    state.output("Shadow #%s: %s=>%s" % (len(state.game_frame.shadows), int(a1), int(a2)))
     state.game_frame.shadows.append(shadow)
 
 def join(shadow1, shadow2):
@@ -472,17 +477,18 @@ def join(shadow1, shadow2):
     shadow.join(shadow2)
     a1 = state.rad2deg(shadow.start)
     a2 = state.rad2deg(shadow.start+shadow.lenght)
-    state.message("Shadow #%s: %s=>%s" % (len(state.game_frame.shadows), int(a1), int(a2)))
+    state.output("Shadow #%s: %s=>%s" % (len(state.game_frame.shadows), int(a1), int(a2)))
     state.game_frame.shadows.append(shadow)
 
 def compare(shadow1, shadow2):
-    state.message("1 in 2:  %s" % (shadow1 in shadow2))
-    state.message("2 in 1:  %s" % (shadow2 in shadow1))
-    state.message("1 >in 2: %s" % shadow2.strictly_contains(shadow1))
-    state.message("2 >in 1: %s" % shadow1.strictly_contains(shadow2))
+    state.output("1 in 2:  %s" % (shadow1 in shadow2))
+    state.output("2 in 1:  %s" % (shadow2 in shadow1))
+    state.output("1 >in 2: %s" % shadow2.strictly_contains(shadow1))
+    state.output("2 >in 1: %s" % shadow1.strictly_contains(shadow2))
 
 def name(entity, name):
     state.game_frame.get_creature(entity).str = name
+    state.output("Entity renamed")
 
 def open_door(pos):
     door = state.game_frame.window.map[pos]
@@ -503,13 +509,19 @@ def close(pos):
 def pickup(item):
     state.game_frame.window.map[state.game_frame.get_hero().pos].remove_creature(item)
     state.game_frame.get_hero().inventory.add_item(state.game_frame.get_creature(item))
+    state.output("pickup item")
     
 def load(map_name):
     if not map_name.endswith(".mp"):
         map_name += ".mp"
     file = os.path.join(state.BASEDIR, "maps", map_name)
     state.game_frame.window.map.load_file(file)
+    state.output("Map loaded!")
 
+def autotrigger():
+    state.action_frame.autotrigger ^= True
+    state.output("Changed command trigger mode")
+    
 def help():
     state.output(
         """HELP - commands starting withing braces are debug only
@@ -533,13 +545,14 @@ o -> open <door>
 O -> close <door>
 p -> pickup <item>
 [C-l] -> load
-C-x -> exit current command
-next -> scroll down messages
-prior -> scoll up message"""
+C-x -> *exit current command*
+next -> *scroll down messages*
+prior -> *scoll up message*
+u -> switch autotrigger"""
     )
     
 def init_actions():
-    global look_action, quit_action, idle_action, attack_action, left_action, up_action, right_action, down_action, left_action, move_mode_action, save_action, create_action, delete_action, delete_action, vertexes_action, coords_action, switch_action, shadow_action, compare_action, name_action, join_action, open_action, close_action, pickup_action, load_action, help_action
+    global look_action, quit_action, idle_action, attack_action, left_action, up_action, right_action, down_action, left_action, move_mode_action, save_action, create_action, delete_action, delete_action, vertexes_action, coords_action, switch_action, shadow_action, compare_action, name_action, join_action, open_action, close_action, pickup_action, load_action, help_action, switch_trigger_action
     look_action = Action(
         "look",
         [Argument("pos", PromptPos())],
@@ -682,4 +695,8 @@ def init_actions():
         [],
         help
     )
-        
+    switch_trigger_action = Action(
+        "switch autotrigger",
+        [],
+        autotrigger
+    )
