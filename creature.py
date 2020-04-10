@@ -91,6 +91,14 @@ class Creature:
     DEFAULT_EFFECTS = SaveInterface(list, list, [])
     DEFAULT_ALIVE = SaveInterface(bool, bool, True)
     CREATURE_ATTRIBUTES = {"is_pickable", "char", "pos", "color", "speed", "life", "max_life", "mana", "max_mana", "str", "armor", "resistance", "strenght", "max_weight", "weight", "inventory", "_dead", "creature_id", "uuid", "is_hero", "is_walkable", "effects", "alive"}
+    def exec_trigger(self, trigger):
+        cmd = trigger.split(" ",1)[0]
+        args = trigger.split(" ",1)[1:]
+        if cmd == "summon":
+            crt = creature_map[int(args[0])](pos=self.pos)
+            state.game_frame.create_creature(crt)
+    def add_trigger(self, trigger, effect):
+        self.triggers[trigger] = effect
     def __init__(self, **attributes):
         for key in attributes.keys():
             if key not in self.CREATURE_ATTRIBUTES:
@@ -102,6 +110,7 @@ class Creature:
         for key, value in attributes.items():
             dattr = getattr(self, "DEFAULT_"+key.upper())
             setattr(self, key, dattr.load(value))
+        self.triggers = {}
         self._post_init()
     def is_dead(self):
         return self._dead
@@ -126,7 +135,8 @@ class Creature:
     def react_to_attack(self, damage, source):
         pass
     def on_death(self):
-        pass
+        if "death" in self.triggers:
+            self.exec_trigger(self.triggers["death"])
     def die(self):
         self._dead = True
         self.on_death()
@@ -234,10 +244,16 @@ class CreatureHolder:
             save_int = getattr(self, rattr).copy()
             save_int.value = value
             setattr(self, rattr, save_int)
+        self.triggers = {}
+    def add_trigger(self, trigger, effect):
+        self.triggers[trigger] = effect
     def __call__(self, *args, **kwargs):
         kargs = self.args.copy()
         kargs.update(kwargs)
-        return self.ai(*args, **kargs)
+        ai = self.ai(*args, **kargs)
+        for trigger in self.triggers.items():
+            ai.add_trigger(*trigger)
+        return ai
     
 """
 class Soul(AutoCreature):
@@ -276,7 +292,7 @@ class Item(Creature):
         Creature.__init__(self, **attributes)
     def take_turn(self):
         return []
-    
+
 ais = {
     "neutral-standard": AutoCreature,
     "item": Item,
@@ -284,6 +300,8 @@ ais = {
 }
 def crt2dict(crt):
     crt = crt.replace("\n", "")
+    while "  " in crt:
+        crt.replace("  ", " ")
     result = {}
     for entry in crt.split(";;"):
         if not entry.replace(" ","").replace("\t", ""): continue
@@ -319,5 +337,7 @@ def load_creatures():
         creature_map[crt["creature_id"]] = creatures[crt_name]
         if args.get("alive", True):
             alive_creatures.add(crt["creature_id"])
-        
+        for arg in crt.keys():
+            if arg.startswith("on_"):
+                creatures[crt_name].add_trigger(arg[3:], crt[arg])
 load_creatures()
