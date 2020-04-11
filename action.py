@@ -397,9 +397,9 @@ def look(pos):
         return
     if state.game_frame.window.map[pos]:
         if state.game_frame.window.map[pos].wall:
-            state.output("%s not walkable" % state.game_frame.window.map[pos].desc.capitalize())
+            state.output("%s (not walkable)" % state.game_frame.window.map[pos].desc.capitalize())
         else:
-            state.output("%s walkable" % state.game_frame.window.map[pos].desc.capitalize())
+            state.output("%s (walkable)" % state.game_frame.window.map[pos].desc.capitalize())
     else:
         state.output("Nothing...")
 

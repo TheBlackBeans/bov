@@ -339,7 +339,7 @@ class GameFrame(state.Frame):
     def open(self, pos):
         self.window.map[pos].wall = False
         self.window.map[pos].obscure = False
-        state.output("Door opened!")
+        state.output("%s opened!" % self.window.map[pos].desc.capitalize())
 
 class GameWindow(state.Window):
     def _post_init(self):
