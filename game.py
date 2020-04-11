@@ -335,7 +335,7 @@ class GameFrame(state.Frame):
                 self.played = True
                 self.window.has_moved = True
     def could_be_open(self, pos):
-        return self.window.map[pos] and self.window.map[pos].char == "+" and self.window.map[pos].wall
+        return self.window.map[pos] and self.window.map[pos].openable and self.window.map[pos].wall
     def open(self, pos):
         self.window.map[pos].wall = False
         self.window.map[pos].obscure = False

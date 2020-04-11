@@ -363,11 +363,11 @@ class PromptPos(PromptType):
         self.pos = state.add_tuples(state.game_frame.get_hero().pos, state.game_frame.window.offset)
         
 
-class PromptDoor(PromptType):
+class PromptLock(PromptType):
     def __init__(self, max_range=1):
         self.max_range = max_range
     def check_realpos_return(self, pos):
-        return state.game_frame.window.map[pos] and state.game_frame.window.map[pos].char == "+" and len(state.game_frame.window.map[pos].creatures) == 0
+        return state.game_frame.window.map[pos] and state.game_frame.window.map[pos].openable and len(state.game_frame.window.map[pos].creatures) == 0
     def init_pos(self):
         self.pos = state.add_tuples(state.game_frame.get_hero().pos, state.game_frame.window.offset)
         self.base_pos = self.pos
@@ -490,23 +490,23 @@ def name(entity, name):
     state.game_frame.get_creature(entity).str = name
     state.output("Entity renamed")
 
-def open_door(pos):
+def open_(pos):
     door = state.game_frame.window.map[pos]
     if door.wall == True:
-        state.output("Door opened")
+        state.output("Lock opened")
         door.wall = False
         door.obscure = False
     else:
-        state.output("Door is already open")
+        state.output("Lock is already open")
 
 def close(pos):
     door = state.game_frame.window.map[pos]
     if door.wall == False:
-        state.output("Door closed")
+        state.output("Lock closed")
         door.wall = True
         door.obscure = True
     else:
-        state.output("Door is already closed")
+        state.output("Lock is already closed")
 
 def pickup(item):
     state.game_frame.window.map[state.game_frame.get_hero().pos].remove_creature(item)
@@ -672,13 +672,13 @@ def init_actions():
 
     open_action = Action(
         "open",
-        [Argument("door", PromptDoor())],
-        open_door
+        [Argument("lock", PromptLock())],
+        open_
     )
 
     close_action = Action(
         "close",
-        [Argument("door", PromptDoor())],
+        [Argument("lock", PromptLock())],
         close
     )
 

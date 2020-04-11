@@ -1,10 +1,11 @@
-import json, creature, state, random, math
+import json, creature, state, random, math, os
 
 class Tile:
-    def __init__(self, char, wall, obscure=None, desc="tile"):
+    def __init__(self, char, wall, obscure=None, desc="tile", openable=False):
         self.char = char
         self.wall = wall
         self.desc = desc
+        self.openable = openable
         if obscure == None:
             self.obscure = wall
         else:
@@ -567,21 +568,56 @@ class Map:
         state.game_frame.pre_load()
         state.game_frame.load_creatures([creature.Hero(pos=(1,1),creature_id=0)])
         state.game_frame.load_items([])
+    def tile2dict(self, tile, file):
+        tile = tile.replace("\n","")
+        result = {
+            "wall": True,
+            "obscure": False,
+            "desc": "tile",
+            "openable": False
+        }
+        rkey = None
+        for entry in tile.split(";;"):
+            if not entry.replace(" ", "").replace("\t",""):
+                continue
+            key, value = entry.split(" ",1)
+            value = eval(value)
+            if key == 'char':
+                rkey = value
+            elif key in {"wall", "obscure", "desc", "openable", "char", 'repr'}:
+                result[key] = value
+            else:
+                state.warning("Tile %s contains an wrong entry: %s" % (file[:-3], key))
+        if rkey == None:
+            state.warning("Tile %s doesn't contain a `char' entry, this shouldn't happend." % file[:-3])
+            rkey = '\x00'
+        if not 'repr' in result:
+            result['repr'] = rkey
+        return rkey, result
+                
+    def load_tiles(self):
+        self.tiles = {}
+        pwd, _, files = next(os.walk(state.realpath('tiles')))
+        for file in files:
+            if not file.endswith(".tl"):
+                continue
+            with open(os.path.join(pwd, file)) as f:
+                key, tile = self.tile2dict(f.read(), file)
+                self.tiles[key] = tile
     def load(self):
+        self.load_tiles()
         self.map = {}
         with open(self.file) as f:
             objs, *self.map_lines = f.read().split("\n")
             for y, line in enumerate(self.map_lines):
                 for x, char in enumerate(line):
-                    if char == ".":
-                        self.map[y,x] = Tile(".", False)
-                    elif char == "#":
-                        self.map[y,x] = Tile("#", True, desc="wall")
-                    elif char == "+":
-                        self.map[y,x] = Tile("+", True, desc="door")
-                    elif char == "C":
-                        self.map[y,x] = Tile("C", True, False, desc="throne")
+                    if char in self.tiles:
+                        t = self.tiles[char]
+                        self.map[y,x] = Tile(t['repr'], t['wall'], t['obscure'], t['desc'], t['openable'])
+                    elif char == ' ':
+                        continue
                     else:
+                        state.warning("Tile not defined at (%s,%s): %s" % (y, x, char))
                         self.map[y,x] = Tile(char, True, False)
             objs = json.loads(objs)
         state.game_frame.pre_load()
