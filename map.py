@@ -1,11 +1,14 @@
 import json, creature, state, random, math, os
 
 class Tile:
-    def __init__(self, char, wall, obscure=None, desc="tile", openable=False):
+    def __init__(self, rchar, char, wall, obscure=None, desc="tile", openable=False, replace_fam=None, family=None):
+        self.rchar = rchar
         self.char = char
         self.wall = wall
         self.desc = desc
         self.openable = openable
+        self.replace_fam = replace_fam
+        self.family = family
         if obscure == None:
             self.obscure = wall
         else:
@@ -53,6 +56,7 @@ class NoTile:
         self.items = []
         self.known = False
         self.highlight = False
+        self.rchar = None
     def draw(self):
         return " "
     def __bool__(self):
@@ -574,7 +578,9 @@ class Map:
             "wall": True,
             "obscure": False,
             "desc": "tile",
-            "openable": False
+            "openable": False,
+            "replace-family": False,
+            'family': None
         }
         rkey = None
         for entry in tile.split(";;"):
@@ -584,7 +590,8 @@ class Map:
             value = eval(value)
             if key == 'char':
                 rkey = value
-            elif key in {"wall", "obscure", "desc", "openable", "char", 'repr'}:
+                result[key] = value
+            elif key in {"wall", "obscure", "desc", "openable", "char", 'repr', 'replace-family', 'family'}:
                 result[key] = value
             else:
                 state.warning("Tile %s contains an wrong entry: %s" % (file[:-3], key))
@@ -604,22 +611,82 @@ class Map:
             with open(os.path.join(pwd, file)) as f:
                 key, tile = self.tile2dict(f.read(), file)
                 self.tiles[key] = tile
+    def adapt_neighboors(self, pos):
+        family = self[pos].family
+        up = bool(self[state.add_tuples(pos, state.UP)] and self[state.add_tuples(pos, state.UP)].family and self.map[state.add_tuples(pos, state.UP)].family == family)
+        right = bool(self[state.add_tuples(pos, state.RIGHT)] and self[state.add_tuples(pos, state.RIGHT)].family and self.map[state.add_tuples(pos, state.RIGHT)].family == family)
+        down = bool(self[state.add_tuples(pos, state.DOWN)] and self[state.add_tuples(pos, state.DOWN)].family and self.map[state.add_tuples(pos, state.DOWN)].family == family)
+        left = bool(self[state.add_tuples(pos, state.LEFT)] and self[state.add_tuples(pos, state.LEFT)].family and self.map[state.add_tuples(pos, state.LEFT)].family == family)
+        n = (up,right,down,left)
+        if n == (True, False, True, False):
+            return 1
+        elif n == (False, True, False, True):
+            return 0
+        elif n == (False, True, True, False):
+            return 2
+        elif n == (False, False, True, True):
+            return 3
+        elif n == (True, True, False, False):
+            return 4
+        elif n == (True, False, False, True):
+            return 5
+        elif n == (True, True, True, False):
+            return 6
+        elif n == (True, False, True, True):
+            return 7
+        elif n == (False, True, True, True):
+            return 8
+        elif n == (True, True, False, True):
+            return 9
+        elif n == (True, True, True, True):
+            return 10
+        elif n == (True, False, False, False):
+            return 1
+        elif n == (False, False, True, False):
+            return 1
+        elif n == (False, True, False, False):
+            return 0
+        elif n == (False, False, False, True):
+            return 0
+        else:
+            return 0
+    def load_families(self):
+        self.families = {}
+        pwd, _, files = next(os.walk(state.realpath('tiles')))
+        for file in files:
+            if not file.endswith(".fmly"):
+                continue
+            with open(os.path.join(pwd, file)) as f:
+                self.families[file[:-5]] = f.read()
+            
     def load(self):
+        self.load_families()
         self.load_tiles()
         self.map = {}
         with open(self.file) as f:
             objs, *self.map_lines = f.read().split("\n")
-            for y, line in enumerate(self.map_lines):
-                for x, char in enumerate(line):
-                    if char in self.tiles:
-                        t = self.tiles[char]
-                        self.map[y,x] = Tile(t['repr'], t['wall'], t['obscure'], t['desc'], t['openable'])
-                    elif char == ' ':
-                        continue
-                    else:
-                        state.warning("Tile not defined at (%s,%s): %s" % (y, x, char))
-                        self.map[y,x] = Tile(char, True, False)
-            objs = json.loads(objs)
+        for y, line in enumerate(self.map_lines):
+            for x, char in enumerate(line):
+                if char in self.tiles:
+                    t = self.tiles[char]
+                    self.map[y,x] = Tile(t['char'], t['repr'], t['wall'], t['obscure'], t['desc'], t['openable'], t['replace-family'], t['family'])
+                elif char == ' ':
+                    continue
+                else:
+                    state.warning("Tile not defined at (%s,%s): %s" % (y, x, char))
+                    self.map[y,x] = Tile(char, True, False)
+        for y, line in enumerate(self.map_lines):
+            for x in range(len(line)):
+                if (y,x) not in self.map:
+                    continue
+                tile = self.map[y,x]
+                if not (tile and tile.replace_fam):
+                    continue
+                if tile.replace_fam not in self.families:
+                    state.warning("Tile %s(%s,%s) requires family replacement, but there is no such family" % (tile.rchar, y, x))
+                    continue
+                tile.char = self.families[tile.replace_fam][self.adapt_neighboors((y,x))]
+        objs = json.loads(objs)
         state.game_frame.pre_load()
         state.game_frame.load_creatures([creature.creature_map[c["creature_id"]](**c) for c in objs["creatures"]])
         state.game_frame.load_items([items.item_map[item["item_id"]](**item) for item in objs["items"]])

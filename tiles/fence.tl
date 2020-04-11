@@ -1,5 +1,6 @@
-char '|';;
+char 'f';;
 wall True;;
 obscure False;;
 desc 'fence';;
-openable False;;
+replace-family 'fences';;
+family 'walls';;

@@ -278,6 +278,7 @@ class Daemon(AutoCreature):
             soul.react_to_attack(0, self.ennemy)
         state.game_frame.create_creature(soul)
 """
+
 class Item(Creature):
     DEFAULT_CREATURE_ID = SaveInterface(int, int, 3)
     DEFAULT_CHAR = SaveInterface(str, str, ")")
@@ -298,6 +299,7 @@ ais = {
     "item": Item,
     "idle": Creature
 }
+
 def crt2dict(crt):
     crt = crt.replace("\n", "")
     while "  " in crt:

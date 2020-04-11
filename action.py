@@ -523,6 +523,10 @@ def load(map_name):
 def autotrigger():
     state.action_frame.autotrigger ^= True
     state.output("Changed command trigger mode")
+
+def neighboors(pos):
+    state.output(state.game_frame.window.map.adapt_neighboors(pos))
+    state.output(state.game_frame.window.map[pos].family)
     
 def help():
     state.output(
@@ -550,11 +554,12 @@ p -> pickup <item>
 C-x -> *exit current command*
 next -> *scroll down messages*
 prior -> *scoll up messages*
-u -> switch autotrigger"""
+u -> switch autotrigger
+[N] -> neighboors <pos>"""
     )
     
 def init_actions():
-    global look_action, quit_action, idle_action, attack_action, left_action, up_action, right_action, down_action, left_action, move_mode_action, save_action, create_action, delete_action, delete_action, vertexes_action, coords_action, switch_action, shadow_action, compare_action, name_action, join_action, open_action, close_action, pickup_action, load_action, help_action, switch_trigger_action
+    global look_action, quit_action, idle_action, attack_action, left_action, up_action, right_action, down_action, left_action, move_mode_action, save_action, create_action, delete_action, delete_action, vertexes_action, coords_action, switch_action, shadow_action, compare_action, name_action, join_action, open_action, close_action, pickup_action, load_action, help_action, switch_trigger_action, neighboors_action
     look_action = Action(
         "look",
         [Argument("pos", PromptPos())],
@@ -701,4 +706,9 @@ def init_actions():
         "switch autotrigger",
         [],
         autotrigger
+    )
+    neighboors_action = Action(
+        "neighboors",
+        [Argument("pos", PromptPos())],
+        neighboors
     )

@@ -1,0 +1,5 @@
+ai "idle";;
+creature_id 3;;
+char 'h';;
+str 'human';;
+atk 2;;

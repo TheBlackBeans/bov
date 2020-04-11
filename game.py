@@ -320,6 +320,10 @@ class GameFrame(state.Frame):
             state.action_frame.load_action(
                 state.action.switch_trigger_action
             )
+        elif key == ord("N"):
+            state.action_frame.load_action(
+                state.action.neighboors_action
+            )
         else:
             return False
         return True
