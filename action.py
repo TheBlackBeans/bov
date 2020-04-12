@@ -534,27 +534,27 @@ def help():
 q -> quit
 l -> look
 i -> idle
-[arrows] -> move
+*arrows* -> move
 a -> attack <target>
 t -> turnmode <mode>
 s -> save
+o -> open <door>
+O -> close <door>
+p -> pickup <item>
+n -> name <creature> <name>
+C-x -> *exit current command*
+next -> *scroll down messages*
+prior -> *scoll up messages*
+u -> switch autotrigger
 [c] -> create <entity> <pos>
 [d] -> delete <pos>
 [z] -> vertexes <pos>
 [e] -> coords <pos>
 [r] -> switch
-[d] -> shadow
+[C-d] -> shadow
 [C] -> compare <shadow1> <shadow2>
-n -> name <creature> <name>
 [j] -> join <shadow1> <shadow2>
-o -> open <door>
-O -> close <door>
-p -> pickup <item>
 [C-l] -> load
-C-x -> *exit current command*
-next -> *scroll down messages*
-prior -> *scoll up messages*
-u -> switch autotrigger
 [N] -> neighboors <pos>"""
     )
     
