@@ -164,7 +164,8 @@ class Creature:
             self.die()
     def take_turn(self):
         # do something
-        return [(self.speed, self.take_turn)]
+        return []
+        #return [(self.speed, self.take_turn)]
     def save(self):
         res = {}
         for key in self.CREATURE_ATTRIBUTES:
@@ -280,16 +281,18 @@ class Daemon(AutoCreature):
 """
 
 class Item(Creature):
-    DEFAULT_CREATURE_ID = SaveInterface(int, int, 3)
-    DEFAULT_CHAR = SaveInterface(str, str, ")")
     DEFAULT_IS_WALKABLE = SaveInterface(bool, bool, True)
-    DEFAULT_SLOT = SaveInterface(str, str, "inv")
+    DEFAULT_ITEM = SaveInterface(str, str, "sword")
     DEFAULT_ATTRIBUTES = SaveInterface(list, list, [])
     DEFAULT_IS_PICKABLE = SaveInterface(bool, bool, True)
     DEFAULT_STR = SaveInterface(str, str, "item")
     DEFAULT_ALIVE = SaveInterface(bool, bool, False)
+    DEFAULT_NAME = SaveInterface(str, str, "sword")
+    DEFAULT_ICON = SaveInterface(str, str, ")")
     def __init__(self, **attributes):
-        self.CREATURE_ATTRIBUTES = self.CREATURE_ATTRIBUTES.union({"slot", "attributes"})
+        self.ritem = state.items.get_item(attributes.get("item", "sword"))
+        attributes.update(self.ritem.entity)
+        self.CREATURE_ATTRIBUTES = self.CREATURE_ATTRIBUTES.union({"attributes", "item", "name", "icon"})
         Creature.__init__(self, **attributes)
     def take_turn(self):
         return []

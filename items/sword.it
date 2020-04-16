@@ -1,0 +1,11 @@
+[entity]
+str: sword
+char: sword
+
+[item]
+name: sword
+icon: sword
+slot: r-hand
+slot-effect: atk+10
+weight: 5
+id: 1

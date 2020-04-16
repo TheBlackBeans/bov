@@ -1,12 +1,8 @@
-import state
+import state, os, configparser
 
 WEAPON_CHAR = ")"
 ITEMS_CHAR = "*"
 
-NOTHING_ID = 0
-SWORD_ID = 1
-SHIELD_ID = 2
-POTION_ID = 3
 
 class InventoryWindow(state.Window):
     def draw(self):
@@ -47,15 +43,15 @@ class Inventory:
     def __eq__(self, right):
         return self.slots == right.slots and self.inventory == right.inventory
     def add_item(self, item):
-        self.inventory.append(item)
+        self.inventory.append(get_item(item.item))
     @classmethod
     def load(cls, value):
         slots = value["slots"]
         if slots:
-            slots = {key: Item(*value) if value[3] != NOTHING_ID else NoneItem() for key, value in slots.items()}
+            slots = {key: Item.load(value[0], **value[1]) if value[0] != None else NoneItem() for key, value in slots.items()}
         inventory = value["inventory"]
         if inventory:
-            inventory = [Item(*value) for value in inventory]
+            inventory = [Item.load(value[0], **value[1]) for value in inventory]
         return cls(slots=slots, inventory=inventory)
     @staticmethod
     def save(inventory):
@@ -66,42 +62,112 @@ class Inventory:
     def inventory_effects(self):
         pass
 
-        
+items = {}
+    
+def load_items():
+    global items
+    items = {}
+    pwd, _, files = next(os.walk(state.realpath('items')))
+    for file in files:
+        if not file.endswith(".it"):
+            continue
+        name = file[:-3]
+        item = configparser.ConfigParser()
+        item.read(os.path.join(pwd, file))
+        items[name] = it2item(item, name)
 
+def get_item(name):
+    return items[name]
+
+def it2item(item, name):
+    default_values = {
+        "entity": {
+            "str": "item",
+            "char": "item"
+        },
+        "item": {
+            "slot": "",
+            "slot-effect": "",
+            "weight": "0",
+            "id": "0",
+            "name": "item",
+            "icon": "item"
+        }
+    }
+    
+    for section in item.sections():
+        if section not in default_values:
+            state.warning("item %s is defining a custom section %s" % (name, section))
+            default_values[section] = {}
+        for key, value in item[section].items():
+            if key not in default_values[section]:
+                state.warning("item %s is defining a custom entry %s.%s=%s" % (name, section, key, value))
+            default_values[section][key] = value
+    return Item(name, **default_values)
+       
 class Item:
-    def __init__(self, weight, char, name, id, properties=None):
-        self.weight = weight
-        self.char = char
-        self.name = name
-        self.id = id
-        if properties == None:
-            self.properties={}
-        else:
-            self.properties = properties
+    @staticmethod
+    def load(i, **properties):
+        item = get_item(i)
+        item.properties.update(properties)
+        return item
+    def __init__(self, i, **properties):
+        self.item = i
+        self.properties = properties
+        self.entity["char"] = state.icon.get_icon(self.entity["char"])
+    @property
+    def weight(self):
+        return int(self.properties['item']['weight'])
+    @weight.setter
+    def weight(self, value):
+        self.properties['item']['weight'] = str(value)
+    @property
+    def char(self):
+        return state.icon.get_icon(self.properties['item']['icon'])
+    @char.setter
+    def char(self, value):
+        self.properties['item']['icon'] = value
+    @property
+    def name(self):
+        return self.properties['item']['name']
+    @name.setter
+    def name(self, value):
+        self.properties['item']['name'] = value
+    @property
+    def id(self):
+        return int(self.properties['item']['id'])
+    @id.setter
+    def id(self, value):
+        self.properties['item']['id'] = str(value)
+    @property
+    def entity(self):
+        return self.properties['entity']
+    @entity.setter
+    def entity(self, value):
+        self.properties['entity'] = value
+                                            
     def repr(self):
         return self.name
     def __str__(self):
         return self.char
     def __eq__(self, right):
-        return self.id == right.id and self.properties == right.properties
+        return self.id == right.id
     def save(self):
-        return [self.weight, self.char, self.name, self.id, self.properties]
+        return (self.item, self.properties)
 
-class Sword(Item):
-    def __init__(self, weight, name, properties=None):
-        Item.__init__(self, weight, WEAPON_CHAR, name, SWORD_ID, properties=properties)
-    
-class Potion(Item):
-    def __init__(self, name, properties=None):
-        Item.__init__(self, 1, ITEM_CHAR, name, POTION_ID, properties=properties)
         
     
 class NoneItem(Item):
     def __init__(self):
-        self.weight = 0
-        self.char = " "
-        self.id = NOTHING_ID
-        self.name = "Nothing"
-        self.properties = {}
+        self.properties = {
+            'item': {
+                'weight': '0',
+                'char': " ",
+                'id': '0',
+                'name': 'Nothing'
+            },
+            'entity': {}
+        }
+        self.item = None
     def __bool__(self):
         return False
