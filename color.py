@@ -78,6 +78,6 @@ def init_curses_color():
     # 9 - Lit but hidden tile
     curses.init_pair(9, colors["GREY"], colors["WHITE"])
     # 10 - Highlighted tile
-    curses.init_pair(10, colors["RED2"], colors["WHITE"])
+    curses.init_pair(10, colors["WHITE"], colors["RED2"])
     # 11 - Warning text
     curses.init_pair(11, colors["ORANGE"], colors["WHITE"])

@@ -29,6 +29,7 @@ class Tile:
             color = "\\C8;"
         elif self.lit == 1:
             color = "\\C9;"
+            return "\\C1; "
         else:
             return "\\C1; "
         if self.creatures and self.lit == 2:

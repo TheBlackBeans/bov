@@ -1,6 +1,6 @@
-char '.';;
-repr '·';;
+char '°';;
+repr '.';;
 wall False;;
 obscure False;;
-desc 'inside ground';;
+desc 'ground';;
 openable False;;

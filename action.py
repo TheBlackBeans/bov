@@ -461,23 +461,21 @@ def switch():
         state.game_frame.window.hide = False
     else:
         state.game_frame.window.hide = True
+    state.game_frame.window.has_moved = True
+    state.game_frame.window.draw()
     state.output("switched")
         
 def shadow(pos1):
     pos = state.game_frame.get_hero().pos
     w = state.game_frame.window
     shadow = w.compute_shadow(pos,pos1)
-    a1 = state.rad2deg(shadow.start)
-    a2 = state.rad2deg(shadow.start+shadow.lenght)
-    state.output("Shadow #%s: %s=>%s" % (len(state.game_frame.shadows), int(a1), int(a2)))
+    state.output("Shadow #%s: %s=>%s" % (len(state.game_frame.shadows), shadow.left.angle(), shadow.right.angle()))
     state.game_frame.shadows.append(shadow)
 
 def join(shadow1, shadow2):
     shadow = shadow1.copy()
     shadow.join(shadow2)
-    a1 = state.rad2deg(shadow.start)
-    a2 = state.rad2deg(shadow.start+shadow.lenght)
-    state.output("Shadow #%s: %s=>%s" % (len(state.game_frame.shadows), int(a1), int(a2)))
+    state.output("Shadow #%s: %s=>%s" % (len(state.game_frame.shadows), shadow.left.angle(), shadow.right.angle()))
     state.game_frame.shadows.append(shadow)
 
 def compare(shadow1, shadow2):
@@ -498,6 +496,7 @@ def open_(pos):
         door.obscure = False
     else:
         state.output("Lock is already open")
+    state.game_frame.window.has_moved = True
 
 def close(pos):
     door = state.game_frame.window.map[pos]
@@ -507,10 +506,11 @@ def close(pos):
         door.obscure = True
     else:
         state.output("Lock is already closed")
+    state.game_frame.window.has_moved = True
 
 def pickup(item):
-    state.game_frame.window.map[state.game_frame.get_hero().pos].remove_creature(item)
     state.game_frame.get_hero().inventory.add_item(state.game_frame.get_creature(item))
+    state.game_frame.remove_creature(item)
     state.output("pickup item")
     
 def load(map_name):
@@ -518,6 +518,7 @@ def load(map_name):
         map_name += ".mp"
     file = os.path.join(state.BASEDIR, "maps", map_name)
     state.game_frame.window.map.load_file(file)
+    state.game_frame.window.draw()
     state.output("Map loaded!")
 
 def autotrigger():

@@ -54,6 +54,7 @@ class MessageWindow(Window):
         self.draw_messages()
     
 def main(stdscr):
+    
     stop = False
     color.init_curses_color()
     state.screen = Screen(stdscr)
@@ -83,6 +84,7 @@ def main(stdscr):
         mw_height,
         mw_width
     )
+    state.load()
 
     aw_height = 3
     aw_width = 2*sc_width//5+1

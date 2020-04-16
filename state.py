@@ -83,7 +83,12 @@ def output(*args, sep=' '):
 
 def quit():
     raise QuitGame()
-    
+
+# load functions
+
+def load():
+    icon.load_icons()
+    items.load_items()
 ### FRAMES ###
 
 # A frame is an object which purpose is to make a single aspect
@@ -269,7 +274,7 @@ class Turns:
         self.parent.addstr(self.y, self.x, "Turns: %s (%s)" % (game_frame.player_turns, game_frame.turns))
 
 
-import action, verticalhandler, game, creature, items, color, map
+import action, verticalhandler, game, creature, items, color, map, icon
 
 from items import Item, InventoryWindow, Inventory
 from action import ActionFrame, ActionWindow, Action
